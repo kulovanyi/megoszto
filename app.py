@@ -184,6 +184,9 @@ def startup_event():
 
 @app.get("/")
 def read_root():
+    root_index = os.path.join(BASE_DIR, "index.html")
+    if os.path.exists(root_index):
+        return FileResponse(root_index)
     return FileResponse(os.path.join(TEMPLATES_DIR, "index.html"))
 
 @app.get("/favicon.ico")
