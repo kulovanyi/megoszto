@@ -1,0 +1,255 @@
+{
+  "users": {
+    "1": {
+      "id": 1,
+      "name": "Kulovanyi Kornel",
+      "email": "kulovanyi.kornel@gmail.com",
+      "password": "oauth_google",
+      "phone": "+36 30 111 2222",
+      "city": "Balassagyarmat",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIuDqCb0ZC_qwAbIJ4Wyb2R4rSJqiW7cgQ4jXPhJvmSGUUnlFD62Q=s96-c",
+      "rating": 5.0,
+      "reviews_count": 3,
+      "subscription_plan": "pro_10",
+      "max_items": 10,
+      "auth_provider": "google",
+      "role": "admin",
+      "is_admin": true,
+      "created_at": "2026-09-04 12:00:00"
+    },
+    "2": {
+      "id": 2,
+      "name": "Nagy Peter (Berlo)",
+      "email": "peter.nagy@gmail.com",
+      "password": "password",
+      "phone": "+36 30 765 4321",
+      "city": "Budapest, XI. kerulet",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "rating": 5.0,
+      "reviews_count": 2,
+      "subscription_plan": "free",
+      "max_items": 1,
+      "auth_provider": "local",
+      "role": "user",
+      "is_admin": false,
+      "created_at": "2026-09-04 12:00:00"
+    },
+    "3": {
+      "id": 3,
+      "name": "Szabo Anna",
+      "email": "szabo.anna@gmail.com",
+      "password": "password",
+      "phone": "+36 20 987 6543",
+      "city": "Szeged",
+      "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "rating": 4.9,
+      "reviews_count": 5,
+      "subscription_plan": "starter_3",
+      "max_items": 3,
+      "auth_provider": "local",
+      "role": "user",
+      "is_admin": false,
+      "created_at": "2026-09-04 12:00:00"
+    }
+  },
+  "items": {
+    "1": {
+      "id": 1,
+      "user_id": 1,
+      "title": "Szekreny",
+      "category": "Barkacsolas",
+      "description": "Kenyelmes, massziv butor / tarolo szekreny rendezvenyekre, fotozashoz vagy koltozeshez.",
+      "price": 2000,
+      "price_unit": "nap",
+      "deposit": 20000,
+      "image_url": "static/uploads/3a1948cd10d04184bbce02bc9846ea84.png",
+      "location": "Balassagyarmat",
+      "condition": "Ujszeru",
+      "available": 1,
+      "created_at": "2026-09-04 17:03:28",
+      "featured_until": "2026-09-15 18:00:00"
+    },
+    "2": {
+      "id": 2,
+      "user_id": 2,
+      "title": "Bosch Professional GBH 2-28 Furokalapacs",
+      "category": "Barkacsolas",
+      "description": "Eros, strapabiro 880W-os ipari furokalapacs SDS-plus tokmannyal, veso es furoszar keszlettel.",
+      "price": 3900,
+      "price_unit": "nap",
+      "deposit": 15000,
+      "image_url": "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=600&auto=format&fit=crop&q=80",
+      "location": "Budapest, XI. kerulet",
+      "condition": "Kivalo allapotu",
+      "available": 1,
+      "created_at": "2026-09-04 14:00:00",
+      "featured_until": null
+    },
+    "3": {
+      "id": 3,
+      "user_id": 3,
+      "title": "Karcher K5 Power Control Magasnyomasu Moso",
+      "category": "Takaritas",
+      "description": "145 bar nyomasu premium moso teraszmoso fejjel, automoso keszlettel, vizhuteses motorral.",
+      "price": 4500,
+      "price_unit": "nap",
+      "deposit": 25000,
+      "image_url": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&auto=format&fit=crop&q=80",
+      "location": "Szeged",
+      "condition": "Ujszeru",
+      "available": 1,
+      "created_at": "2026-09-04 13:00:00",
+      "featured_until": null
+    },
+    "4": {
+      "id": 4,
+      "user_id": 1,
+      "title": "Husqvarna 445 II Benzines Lancfuresz",
+      "category": "Kerteszet",
+      "description": "Megbizhato, eros 2.8 LE-s motoros furesz tuzifa apritashoz vagy kerti faapalashoz.",
+      "price": 5500,
+      "price_unit": "nap",
+      "deposit": 30000,
+      "image_url": "https://images.unsplash.com/photo-1546554137-f86b9593a222?w=600&auto=format&fit=crop&q=80",
+      "location": "Balassagyarmat",
+      "condition": "Kivalo allapotu",
+      "available": 1,
+      "created_at": "2026-09-04 12:00:00",
+      "featured_until": "2026-09-12 12:00:00"
+    },
+    "5": {
+      "id": 5,
+      "user_id": 3,
+      "title": "Harry Potter Diszdobozos Konyvsorozat (1-7. kotet)",
+      "category": "Rendezveny & Hobbi",
+      "description": "A teljes varazslowilag sorozat kemenytablas, magyar nyelvu diszkiadasban.",
+      "price": 800,
+      "price_unit": "nap",
+      "deposit": 10000,
+      "image_url": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600&auto=format&fit=crop&q=80",
+      "location": "Szeged",
+      "condition": "Ujszeru",
+      "available": 1,
+      "created_at": "2026-09-04 11:00:00",
+      "featured_until": null
+    },
+    "6": {
+      "id": 6,
+      "user_id": 2,
+      "title": "DJI Mini 3 Pro 4K Dron Keszlet (Fly More Combo)",
+      "category": "Rendezveny & Hobbi",
+      "description": "4K/60fps HDR videofelvetel, 3 akkumulator, RC kijelzos taviranyito.",
+      "price": 8900,
+      "price_unit": "nap",
+      "deposit": 50000,
+      "image_url": "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?w=600&auto=format&fit=crop&q=80",
+      "location": "Budapest, XI. kerulet",
+      "condition": "Ujszeru",
+      "available": 1,
+      "created_at": "2026-09-04 10:00:00",
+      "featured_until": null
+    }
+  },
+  "rentals": {
+    "1": {
+      "id": 1,
+      "item_id": 1,
+      "renter_id": 2,
+      "owner_id": 1,
+      "start_date": "2026-09-10",
+      "end_date": "2026-09-12",
+      "units_count": 2,
+      "total_price": 4000,
+      "deposit": 20000,
+      "status": "approved",
+      "note": "Szombat delelott atvennem szemelyesen!",
+      "created_at": "2026-09-04 18:00:00"
+    }
+  },
+  "reviews": {
+    "1": {
+      "id": 1,
+      "item_id": 1,
+      "reviewer_id": 2,
+      "reviewer_name": "Nagy Peter",
+      "rating": 5,
+      "comment": "Minden a megbeszeltek szerint zajlott, pontos es nagyon segitokesz!",
+      "created_at": "2026-09-02 16:45:00"
+    }
+  },
+  "conversations": {
+    "conv_1": {
+      "id": "conv_1",
+      "participants": [
+        1,
+        2
+      ],
+      "item_id": 1,
+      "last_message": "oke, varlak szombaton!",
+      "last_message_at": "2026-09-04 20:25:10",
+      "last_sender_id": 1,
+      "unread_counts": {
+        "1": 0,
+        "2": 0
+      },
+      "archived_by": [],
+      "deleted_by": [],
+      "created_at": "2026-09-04 19:06:38"
+    }
+  },
+  "messages": {
+    "1": {
+      "id": 1,
+      "conversation_id": "conv_1",
+      "sender_id": 1,
+      "receiver_id": 2,
+      "content": "Szia Peter! Lattam a foglalast.",
+      "item_id": 1,
+      "created_at": "2026-09-04 19:06:38",
+      "is_read": true
+    },
+    "2": {
+      "id": 2,
+      "conversation_id": "conv_1",
+      "sender_id": 2,
+      "receiver_id": 1,
+      "content": "Szia Kornel! Szombat 10-kor tudok menni erte.",
+      "item_id": 1,
+      "created_at": "2026-09-04 19:10:00",
+      "is_read": true
+    },
+    "3": {
+      "id": 3,
+      "conversation_id": "conv_1",
+      "sender_id": 1,
+      "receiver_id": 2,
+      "content": "oke, varlak szombaton!",
+      "item_id": 1,
+      "created_at": "2026-09-04 20:25:10",
+      "is_read": true
+    }
+  },
+  "transactions": {
+    "tx_1": {
+      "id": "tx_1",
+      "type": "boost",
+      "item_id": 1,
+      "item_title": "Szekreny",
+      "plan_id": "boost_1_day",
+      "plan_name": "1 Napos Villam Kiemeles",
+      "amount_huf": 390,
+      "currency": "HUF",
+      "user_id": 1,
+      "user_name": "Kulovanyi Kornel",
+      "status": "paid",
+      "created_at": "2026-09-04 18:52:00"
+    }
+  },
+  "meta": {
+    "item_seq": 6,
+    "user_seq": 3,
+    "rental_seq": 1,
+    "review_seq": 1,
+    "msg_seq": 3
+  }
+}
