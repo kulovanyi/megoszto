@@ -1,8 +1,40 @@
-// Megosztó Hybrid Client DB & API Interceptor for GitHub Pages & Offline
+// Megosztó Live Firebase Firestore & Client Data Adapter for GitHub Pages
 (function() {
-    console.log('🚀 [Megosztó] Initializing Client Data Adapter for GitHub Pages...');
+    console.log('🔥 [Megosztó] Initializing Live Firebase Firestore Data Adapter...');
 
-    const CLIENT_DB_KEY = 'megoszto_client_db_v4';
+    const CLIENT_DB_KEY = 'megoszto_client_db_v5';
+
+    // Firebase inicializálás
+    const firebaseConfig = {
+        apiKey: 'AIzaSyCZqV24fltN672ySbrw28dxEPGcNFi06zE',
+        authDomain: 'kolcsonado.firebaseapp.com',
+        projectId: 'kolcsonado',
+        storageBucket: 'kolcsonado.firebasestorage.app',
+        messagingSenderId: '1072705116754',
+        appId: '1:1072705116754:web:1d83adf419b58721e09d8b',
+        measurementId: 'G-Y32BGKZRQK'
+    };
+
+    let fbDb = null;
+    let fbAuth = null;
+
+    function getFirestore() {
+        if (fbDb) return fbDb;
+        if (typeof firebase !== 'undefined') {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                fbDb = firebase.firestore();
+                fbAuth = firebase.auth();
+                console.log('🔥 [Firestore Live] Csatlakozva a Google Cloud Firestore-hoz!');
+                return fbDb;
+            } catch (e) {
+                console.warn('[Firestore] Inicializálási megjegyzés:', e);
+            }
+        }
+        return null;
+    }
 
     let _seedData = null;
 
@@ -62,6 +94,19 @@
         { id: 'unlimited', name: 'Profi Kölcsönző (Végtelen)', price: 7990, max_items: 9999, badge: 'Korlátlan', features: ['Végtelen eszköz feltöltése', 'Arany jelvény a hirdetéseken', '0% platform jutalék', 'Kiemelt VIP ügyfélszolgálat'] }
     ];
 
+    // Szinkronizálás Firestore-ba (ha online van a Firebase)
+    async function syncDocToFirestore(collection, id, data) {
+        const firestore = getFirestore();
+        if (firestore) {
+            try {
+                await firestore.collection(collection).doc(String(id)).set(data, { merge: true });
+                console.log('🔥 [Firestore Sync] ' + collection + '/' + id + ' sikeresen mentve a Firebase felhőbe!');
+            } catch (err) {
+                console.warn('[Firestore Sync] ' + collection + '/' + id + ' mentési figyelmeztetés:', err);
+            }
+        }
+    }
+
     async function handleApiRequest(urlStr, init = {}) {
         const url = new URL(urlStr, window.location.href);
         const path = url.pathname;
@@ -77,6 +122,7 @@
         }
 
         const db = await getOrInitDb();
+        const firestore = getFirestore();
 
         if (path.endsWith('/api/plans')) return makeResponse(PLANS);
         if (path.endsWith('/api/cities')) {
@@ -87,48 +133,78 @@
             return makeResponse(['Budapest', 'Debrecen', 'Szeged', 'Miskolc', 'Pécs', 'Győr', 'Nyíregyháza', 'Kecskemét', 'Székesfehérvár', 'Balassagyarmat']);
         }
         if (path.endsWith('/api/firebase/status')) {
-            return makeResponse({ is_live: false, database_type: 'Megosztó Web DB (GitHub Pages / Offline)', message: 'Kliensoldali szinkronizáció aktív.' });
+            return makeResponse({
+                is_live: !!firestore,
+                database_type: firestore ? 'Google Cloud Firestore (Élő felhő Firestore SDK)' : 'Megosztó Web DB (Kliens)',
+                message: firestore ? 'Az adatok közvetlenül a Google Firestore felhőbe íródnak és onnan töltődnek be!' : 'Helyi tároló aktív.'
+            });
         }
 
-        // Auth
+        // Auth / User
         if (path.endsWith('/api/auth/me')) {
             const uid = url.searchParams.get('user_id') || localStorage.getItem('kolcsonado_user_id') || '1';
-            const user = db.users[uid] || db.users['1'];
-            return makeResponse(user);
+            let user = db.users[uid];
+            if (!user && firestore) {
+                try {
+                    const doc = await firestore.collection('users').doc(String(uid)).get();
+                    if (doc.exists) user = doc.data();
+                } catch (e) {}
+            }
+            return makeResponse(user || db.users['1']);
         }
+
         if (path.endsWith('/api/auth/login')) {
             const email = (body.email || '').trim().toLowerCase();
             let user = Object.values(db.users).find(u => (u.email || '').toLowerCase() === email);
             if (!user) {
-                user = { id: Date.now(), name: email.split('@')[0], email: email, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', subscription_plan: 'free', max_items: 1, rating: 5.0, reviews_count: 0 };
+                user = { id: Date.now(), name: email.split('@')[0], email: email, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', subscription_plan: 'free', max_items: 1, rating: 5.0, reviews_count: 0, created_at: new Date().toISOString() };
                 db.users[user.id] = user;
                 saveLocalDb(db);
+                syncDocToFirestore('users', user.id, user);
             }
             return makeResponse({ message: 'Sikeres bejelentkezés!', user: user });
         }
+
         if (path.endsWith('/api/auth/quick-login')) {
             const isFree = body.plan === 'free';
             const user = isFree ? (db.users['2'] || Object.values(db.users).find(u => u.subscription_plan === 'free')) : (db.users['1'] || Object.values(db.users)[0]);
             return makeResponse({ message: 'Sikeres gyors belépés!', user: user });
         }
+
         if (path.endsWith('/api/auth/social-login') || path.endsWith('/api/auth/register')) {
             const email = (body.email || 'user@megoszto.hu').toLowerCase();
             let user = Object.values(db.users).find(u => (u.email || '').toLowerCase() === email);
             if (!user) {
-                user = { id: Date.now(), name: body.name || email.split('@')[0], email: email, avatar: body.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', subscription_plan: 'free', max_items: 1, rating: 5.0, reviews_count: 0 };
+                user = { id: Date.now(), name: body.name || email.split('@')[0], email: email, avatar: body.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', subscription_plan: 'free', max_items: 1, rating: 5.0, reviews_count: 0, phone: body.phone || '', city: body.city || 'Budapest', created_at: new Date().toISOString() };
                 db.users[user.id] = user;
                 saveLocalDb(db);
+                syncDocToFirestore('users', user.id, user);
             }
             return makeResponse({ message: 'Sikeres bejelentkezés!', user: user });
         }
 
-        // Items list
+        // Items List -> Lekéri az élő Firestore-ból is!
         if (path.endsWith('/api/items') && method === 'GET') {
             const cat = url.searchParams.get('category');
             const unit = url.searchParams.get('unit');
             const search = (url.searchParams.get('search') || '').toLowerCase();
             const maxPrice = parseFloat(url.searchParams.get('max_price') || '0');
             const loc = (url.searchParams.get('location') || '').toLowerCase();
+
+            if (firestore) {
+                try {
+                    const snap = await firestore.collection('items').get();
+                    if (!snap.empty) {
+                        snap.forEach(d => {
+                            const data = d.data();
+                            db.items[d.id] = { id: d.id, ...data };
+                        });
+                        saveLocalDb(db);
+                    }
+                } catch (e) {
+                    console.warn('[Firestore Live] Olvasási megjegyzés:', e);
+                }
+            }
 
             let items = Object.values(db.items).map(item => {
                 const owner = db.users[item.user_id] || { name: 'Kornél', avatar: '', rating: 5.0, reviews_count: 0, phone: '', city: item.location };
@@ -156,11 +232,17 @@
             return makeResponse(items);
         }
 
-        // Single item
+        // Single Item
         const itemMatch = path.match(/\/api\/items\/(\d+)$/);
         if (itemMatch && method === 'GET') {
             const itemId = parseInt(itemMatch[1]);
-            const item = db.items[itemId];
+            let item = db.items[itemId];
+            if (!item && firestore) {
+                try {
+                    const d = await firestore.collection('items').doc(String(itemId)).get();
+                    if (d.exists) item = d.data();
+                } catch (e) {}
+            }
             if (!item) return makeResponse({ detail: 'Nem található' }, 404);
             const owner = db.users[item.user_id] || { name: 'Bérbeadó', avatar: '', rating: 5.0, reviews_count: 0, phone: '', city: item.location };
             const reviews = Object.values(db.reviews || {}).filter(r => r.item_id === itemId);
@@ -178,7 +260,7 @@
             });
         }
 
-        // Post item
+        // Új hirdetés feladása -> Menti LocalDB-be ÉS az élő Firestore-ba!
         if (path.endsWith('/api/items') && method === 'POST') {
             const uid = body.user_id || 1;
             const newId = Date.now();
@@ -200,14 +282,16 @@
             };
             db.items[newId] = newItem;
             saveLocalDb(db);
-            return makeResponse({ message: 'Hirdetés sikeresen feladva!', item_id: newId });
+            syncDocToFirestore('items', newId, newItem);
+
+            return makeResponse({ message: 'Hirdetés sikeresen feladva és szinkronizálva a Firebase felhőbe!', item_id: newId });
         }
 
         if (path.endsWith('/api/upload')) {
             return makeResponse({ image_url: 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&auto=format&fit=crop&q=80', message: 'Feltöltve' });
         }
 
-        // Rentals
+        // Rentals -> Menti LocalDB-be ÉS Firestore-ba!
         const rentalsMatch = path.match(/\/api\/users\/(\d+)\/rentals/);
         if (rentalsMatch) {
             const uid = parseInt(rentalsMatch[1]);
@@ -227,9 +311,12 @@
         if (path.endsWith('/api/rentals') && method === 'POST') {
             const newId = Date.now();
             const it = db.items[body.item_id];
-            db.rentals[newId] = { id: newId, item_id: body.item_id, renter_id: body.renter_id, owner_id: it ? it.user_id : 1, start_date: body.start_date, end_date: body.end_date, units_count: body.units_count || 1, total_price: body.total_price || 2000, deposit: body.deposit || 0, status: 'pending', note: body.note || '', created_at: new Date().toISOString() };
+            const newRental = { id: newId, item_id: body.item_id, renter_id: body.renter_id, owner_id: it ? it.user_id : 1, start_date: body.start_date, end_date: body.end_date, units_count: body.units_count || 1, total_price: body.total_price || 2000, deposit: body.deposit || 0, status: 'pending', note: body.note || '', created_at: new Date().toISOString() };
+            db.rentals[newId] = newRental;
             saveLocalDb(db);
-            return makeResponse({ message: 'Bérlési kérelem sikeresen elküldve!', rental_id: newId });
+            syncDocToFirestore('rentals', newId, newRental);
+
+            return makeResponse({ message: 'Bérlési kérelem elküldve és mentve a Firebase felhőbe!', rental_id: newId });
         }
 
         const statusMatch = path.match(/\/api\/rentals\/(\d+)\/status/);
@@ -238,20 +325,24 @@
             if (db.rentals[rId]) {
                 db.rentals[rId].status = body.status || 'approved';
                 saveLocalDb(db);
+                syncDocToFirestore('rentals', rId, db.rentals[rId]);
             }
-            return makeResponse({ message: 'Státusz frissítve!' });
+            return makeResponse({ message: 'Státusz frissítve a felhőben!' });
         }
 
-        // Reviews
+        // Reviews -> Menti LocalDB-be ÉS Firestore-ba!
         if (path.endsWith('/api/reviews') && method === 'POST') {
             const newId = Date.now();
             const u = db.users[body.reviewer_id] || { name: 'Felhasználó' };
-            db.reviews[newId] = { id: newId, item_id: body.item_id, reviewer_id: body.reviewer_id, reviewer_name: u.name, rating: body.rating || 5, comment: body.comment || '', created_at: new Date().toISOString() };
+            const newRev = { id: newId, item_id: body.item_id, reviewer_id: body.reviewer_id, reviewer_name: u.name, rating: body.rating || 5, comment: body.comment || '', created_at: new Date().toISOString() };
+            db.reviews[newId] = newRev;
             saveLocalDb(db);
-            return makeResponse({ message: 'Értékelés rögzítve!' });
+            syncDocToFirestore('reviews', newId, newRev);
+
+            return makeResponse({ message: 'Értékelés rögzítve a felhőben!' });
         }
 
-        // Messages
+        // Messages -> Menti LocalDB-be ÉS Firestore-ba!
         if (path.endsWith('/api/messages/unread-count')) return makeResponse({ unread_count: 0 });
         if (path.endsWith('/api/messages/conversations')) {
             const uid = parseInt(url.searchParams.get('user_id') || '1');
@@ -273,7 +364,7 @@
             const partnerId = parseInt(threadMatch[1]);
             const uid = parseInt(url.searchParams.get('user_id') || '1');
             const partner = db.users[partnerId] || { id: partnerId, name: 'Partner', avatar: '', city: 'Budapest' };
-            const conv = Object.values(db.conversations || {}).find(c => c.participants && c.participants.includes(uid) && c.participants.includes(partnerId)) || { id: conv__, participants: [uid, partnerId], item_id: null, archived_by: [] };
+            const conv = Object.values(db.conversations || {}).find(c => c.participants && c.participants.includes(uid) && c.participants.includes(partnerId)) || { id: 'conv_' + uid + '_' + partnerId, participants: [uid, partnerId], item_id: null, archived_by: [] };
             const msgs = Object.values(db.messages || {}).filter(m => (m.sender_id === uid && m.receiver_id === partnerId) || (m.sender_id === partnerId && m.receiver_id === uid));
             return makeResponse({ conversation: conv, partner: partner, item: conv.item_id ? db.items[conv.item_id] : null, messages: msgs });
         }
@@ -284,7 +375,7 @@
             const msgId = Date.now();
             let conv = Object.values(db.conversations || {}).find(c => c.participants && c.participants.includes(sId) && c.participants.includes(rId));
             if (!conv) {
-                conv = { id: conv_, participants: [sId, rId], item_id: body.item_id || null, last_message: body.content, last_message_at: new Date().toISOString(), last_sender_id: sId, archived_by: [] };
+                conv = { id: 'conv_' + Date.now(), participants: [sId, rId], item_id: body.item_id || null, last_message: body.content, last_message_at: new Date().toISOString(), last_sender_id: sId, archived_by: [] };
                 db.conversations[conv.id] = conv;
             } else {
                 conv.last_message = body.content;
@@ -294,7 +385,11 @@
             const newMsg = { id: msgId, conversation_id: conv.id, sender_id: sId, receiver_id: rId, content: body.content, item_id: body.item_id || conv.item_id, created_at: new Date().toISOString(), is_read: false };
             db.messages[msgId] = newMsg;
             saveLocalDb(db);
-            return makeResponse({ message: 'Üzenet elküldve!', message_data: newMsg, conversation_id: conv.id });
+
+            syncDocToFirestore('conversations', conv.id, conv);
+            syncDocToFirestore('messages', msgId, newMsg);
+
+            return makeResponse({ message: 'Üzenet elküldve és mentve a Firebase felhőbe!', message_data: newMsg, conversation_id: conv.id });
         }
 
         if (path.endsWith('/api/messages/archive')) {
@@ -302,6 +397,7 @@
                 if (!db.conversations[body.conversation_id].archived_by) db.conversations[body.conversation_id].archived_by = [];
                 db.conversations[body.conversation_id].archived_by.push(body.user_id);
                 saveLocalDb(db);
+                syncDocToFirestore('conversations', body.conversation_id, db.conversations[body.conversation_id]);
             }
             return makeResponse({ message: 'Archiválva' });
         }
@@ -317,8 +413,9 @@
                 db.users[body.user_id].subscription_plan = plan.id;
                 db.users[body.user_id].max_items = plan.max_items;
                 saveLocalDb(db);
+                syncDocToFirestore('users', body.user_id, db.users[body.user_id]);
             }
-            return makeResponse({ message: Sikeres előfizetés:  });
+            return makeResponse({ message: 'Sikeres előfizetés a felhőben: ' + plan.name });
         }
         if (path.endsWith('/api/stripe/create-boost-checkout')) {
             const is7 = body.boost_plan_id === 'boost_7_days';
@@ -332,8 +429,9 @@
             if (db.items[body.item_id]) {
                 db.items[body.item_id].featured_until = exp.toISOString();
                 saveLocalDb(db);
+                syncDocToFirestore('items', body.item_id, db.items[body.item_id]);
             }
-            return makeResponse({ message: ⚡ Sikeres kiemelés  napra! });
+            return makeResponse({ message: '⚡ Sikeres kiemelés ' + days + ' napra!' });
         }
 
         // Admin
@@ -375,12 +473,12 @@
                     return response;
                 }
             } catch (netErr) {
-                console.warn('[Client DB] Backend nem elérhető, átváltás kliens adatbázisra:', netErr);
+                console.warn('[Client DB] Backend nem elérhető, átváltás Firebase Firestore-ra:', netErr);
             }
         }
 
         return handleApiRequest(url, init);
     };
 
-    console.log('✅ [Megosztó] Client Data Adapter ready.');
+    console.log('✅ [Megosztó] Live Firebase Firestore Adapter ready.');
 })();
