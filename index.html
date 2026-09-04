@@ -17,53 +17,51 @@
     <!-- FEJLÉC ÉS NAVIGÁCIÓ -->
     <header class="bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200/80 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-20 sm:h-24 gap-4">
+            <div class="flex items-center justify-between h-16 sm:h-24 gap-2 sm:gap-4">
                 <!-- 1. Bal oldal: Logó (főoldalra visz) -->
-                <div class="flex items-center gap-3.5 cursor-pointer group" onclick="switchTab('browse')" title="Megosztó — Vissza a főoldalra">
-                    <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white p-1.5 shadow-lg shadow-emerald-500/15 border border-slate-100 flex items-center justify-center group-hover:scale-105 transition-all overflow-hidden shrink-0">
+                <div class="flex items-center gap-2 sm:gap-3.5 cursor-pointer group shrink-0" onclick="switchTab('browse')" title="Megosztó — Vissza a főoldalra">
+                    <div class="relative w-11 h-11 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-white p-1 sm:p-1.5 shadow-md sm:shadow-lg shadow-emerald-500/15 border border-slate-100 flex items-center justify-center group-hover:scale-105 transition-all overflow-hidden shrink-0">
                         <img src="static/logo.png" alt="Megosztó Logo" class="w-full h-full object-contain">
                     </div>
                     <div>
-                        <span class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">Megosztó<span class="text-sm font-extrabold text-emerald-500 ml-0.5">.hu</span></span>
-                        <p class="text-xs font-bold text-slate-500 -mt-0.5">A megosztás piactere</p>
+                        <span class="text-lg sm:text-3xl font-black tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">Megosztó<span class="text-xs sm:text-sm font-extrabold text-emerald-500 ml-0.5">.hu</span></span>
+                        <p class="text-[10px] sm:text-xs font-bold text-slate-500 -mt-0.5 hidden xs:block">A megosztás piactere</p>
                     </div>
                 </div>
 
-
                 <!-- 2. Középső rész: Hirdetés feladása gomb -->
-                <div class="flex items-center justify-center">
-                    <button onclick="openNewItemModal()" class="px-5 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 transition-all flex items-center gap-2.5 transform active:scale-95">
-                        <i class="fa-solid fa-circle-plus text-base sm:text-lg"></i>
-                        <span>Hirdetés feladása</span>
+                <div class="flex items-center justify-center shrink-0">
+                    <button onclick="openNewItemModal()" class="px-3 sm:px-6 py-2 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 transition-all flex items-center gap-1.5 sm:gap-2.5 transform active:scale-95">
+                        <i class="fa-solid fa-circle-plus text-sm sm:text-lg"></i>
+                        <span class="hidden sm:inline">Hirdetés feladása</span>
+                        <span class="inline sm:hidden">Hirdetés</span>
                     </button>
                 </div>
 
-
                 <!-- 3. Jobb oldal: Felhasználó profil (Kép + Név -> Irányítópult) + Kilépés -->
-                <div class="flex items-center gap-2 sm:gap-3">
+                <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
                     <!-- Bejelentkezett állapot -->
-                    <div id="auth-logged-in" class="flex items-center gap-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 p-1.5 sm:pr-3 rounded-2xl transition-all shadow-sm">
+                    <div id="auth-logged-in" class="flex items-center gap-1 sm:gap-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 p-1 sm:p-1.5 sm:pr-3 rounded-xl sm:rounded-2xl transition-all shadow-sm">
                         <!-- Titkos Admin Gomb (Csak Kornél / Admin fiók esetén jelenik meg) -->
-                        <button id="admin-nav-btn" onclick="switchTab('admin')" class="hidden px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all" title="Adminisztrációs & Pénzügyi Vezérlőpult">
+                        <button id="admin-nav-btn" onclick="switchTab('admin')" class="hidden px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-[11px] sm:text-xs shadow-md shadow-indigo-600/20 flex items-center gap-1 transition-all" title="Adminisztrációs & Pénzügyi Vezérlőpult">
                             <i class="fa-solid fa-crown text-amber-300 text-xs"></i>
-                            <span>Admin</span>
+                            <span class="hidden md:inline">Admin</span>
                         </button>
 
                         <!-- Belső Üzenetek gomb -->
-                        <button id="messages-nav-btn" onclick="switchTab('messages')" class="relative px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-extrabold text-xs transition-all flex items-center gap-1.5" title="Belső Üzenetek & Beszélgetések">
-                            <i class="fa-solid fa-comments text-emerald-600 text-sm"></i>
+                        <button id="messages-nav-btn" onclick="switchTab('messages')" class="relative px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-extrabold text-[11px] sm:text-xs transition-all flex items-center gap-1.5" title="Belső Üzenetek & Beszélgetések">
+                            <i class="fa-solid fa-comments text-emerald-600 text-xs sm:text-sm"></i>
                             <span class="hidden md:inline">Üzenetek</span>
                             <span id="unread-messages-badge" class="hidden px-1.5 py-0.2 bg-rose-500 text-white font-black text-[10px] rounded-full">0</span>
                         </button>
 
-
                         <!-- Profil fül (Irányítópult megnyitása) -->
-                        <div onclick="switchTab('dashboard')" class="flex items-center gap-2.5 cursor-pointer px-1 py-0.5 rounded-xl hover:opacity-90" title="Bérléseim és Irányítópult megnyitása">
-                            <img id="current-user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80" class="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40">
-                            <span id="current-user-name" class="text-xs font-black text-slate-900 leading-tight max-w-[140px] truncate">Betöltés...</span>
+                        <div onclick="switchTab('dashboard')" class="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer px-1 py-0.5 rounded-xl hover:opacity-90" title="Bérléseim és Irányítópult megnyitása">
+                            <img id="current-user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-emerald-500/40">
+                            <span id="current-user-name" class="text-[11px] sm:text-xs font-black text-slate-900 leading-tight max-w-[65px] sm:max-w-[140px] truncate">Betöltés...</span>
                         </div>
                         <!-- Kilépés ikon -->
-                        <button onclick="logoutUser()" title="Kijelentkezés" class="w-8 h-8 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center text-sm border-l border-slate-200 pl-1">
+                        <button onclick="logoutUser()" title="Kijelentkezés" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center text-xs sm:text-sm border-l border-slate-200 pl-1">
                             <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         </button>
                     </div>
