@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Megosztó (megoszto.hu) — A megosztás piactere</title>
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Egyedi Stíluslap -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- FEJLÉC ÉS NAVIGÁCIÓ -->
+    <header class="bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200/80 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20 sm:h-24 gap-4">
+                <!-- 1. Bal oldal: Logó (főoldalra visz) -->
+                <div class="flex items-center gap-3.5 cursor-pointer group" onclick="switchTab('browse')" title="Megosztó — Vissza a főoldalra">
+                    <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white p-1.5 shadow-lg shadow-emerald-500/15 border border-slate-100 flex items-center justify-center group-hover:scale-105 transition-all overflow-hidden shrink-0">
+                        <img src="/static/logo.png" alt="Megosztó Logo" class="w-full h-full object-contain">
+                    </div>
+                    <div>
+                        <span class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">Megosztó<span class="text-sm font-extrabold text-emerald-500 ml-0.5">.hu</span></span>
+                        <p class="text-xs font-bold text-slate-500 -mt-0.5">A megosztás piactere</p>
+                    </div>
+                </div>
+
+
+                <!-- 2. Középső rész: Hirdetés feladása gomb -->
+                <div class="flex items-center justify-center">
+                    <button onclick="openNewItemModal()" class="px-5 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 transition-all flex items-center gap-2.5 transform active:scale-95">
+                        <i class="fa-solid fa-circle-plus text-base sm:text-lg"></i>
+                        <span>Hirdetés feladása</span>
+                    </button>
+                </div>
+
+
+                <!-- 3. Jobb oldal: Felhasználó profil (Kép + Név -> Irányítópult) + Kilépés -->
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <!-- Bejelentkezett állapot -->
+                    <div id="auth-logged-in" class="flex items-center gap-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 p-1.5 sm:pr-3 rounded-2xl transition-all shadow-sm">
+                        <!-- Titkos Admin Gomb (Csak Kornél / Admin fiók esetén jelenik meg) -->
+                        <button id="admin-nav-btn" onclick="switchTab('admin')" class="hidden px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all" title="Adminisztrációs & Pénzügyi Vezérlőpult">
+                            <i class="fa-solid fa-crown text-amber-300 text-xs"></i>
+                            <span>Admin</span>
+                        </button>
+
+                        <!-- Belső Üzenetek gomb -->
+                        <button id="messages-nav-btn" onclick="switchTab('messages')" class="relative px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-extrabold text-xs transition-all flex items-center gap-1.5" title="Belső Üzenetek & Beszélgetések">
+                            <i class="fa-solid fa-comments text-emerald-600 text-sm"></i>
+                            <span class="hidden md:inline">Üzenetek</span>
+                            <span id="unread-messages-badge" class="hidden px-1.5 py-0.2 bg-rose-500 text-white font-black text-[10px] rounded-full">0</span>
+                        </button>
+
+
+                        <!-- Profil fül (Irányítópult megnyitása) -->
+                        <div onclick="switchTab('dashboard')" class="flex items-center gap-2.5 cursor-pointer px-1 py-0.5 rounded-xl hover:opacity-90" title="Bérléseim és Irányítópult megnyitása">
+                            <img id="current-user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80" class="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/40">
+                            <span id="current-user-name" class="text-xs font-black text-slate-900 leading-tight max-w-[140px] truncate">Betöltés...</span>
+                        </div>
+                        <!-- Kilépés ikon -->
+                        <button onclick="logoutUser()" title="Kijelentkezés" class="w-8 h-8 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center text-sm border-l border-slate-200 pl-1">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </div>
+
+                    <!-- Kijelentkezett állapot: Bejelentkezés & Regisztráció -->
+                    <div id="auth-logged-out" class="hidden flex items-center gap-2">
+                        <button onclick="openAuthModal('login')" class="px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors">
+                            Bejelentkezés
+                        </button>
+                        <button onclick="openAuthModal('register')" class="px-3.5 py-2 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors shadow">
+                            Regisztráció
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- FŐ TARTALOMTERÜLET -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- 1. NÉZET: BÖNGÉSZÉS & KERESÉS -->
+        <div id="browse-view" class="space-y-6">
+            
+            <!-- Hero Banner -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 text-white p-8 sm:p-10 shadow-xl">
+                <div class="relative z-10 max-w-2xl">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold mb-4 backdrop-blur-sm">
+                        <i class="fa-solid fa-shield-halved"></i> 100% Szomszédsági Kölcsönzés & Kaucióvédelem
+                    </div>
+                    <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight mb-3 leading-tight">
+                        Miért vennéd meg, ha <span class="text-emerald-300 underline decoration-wavy decoration-emerald-400">ki is bérelheted?</span>
+                    </h1>
+                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
+                        Akár egy ásóra van szükséged a hétvégi faültetéshez <strong>800 Ft/napért</strong>, akár szőnyegtisztítóra <strong>6.000 Ft/munkáért</strong> – találd meg a legközelebbi eszközt a szomszédodtól!
+                    </p>
+                    <div class="flex flex-wrap items-center gap-2 text-xs font-semibold text-emerald-200">
+                        <span class="bg-white/10 px-3 py-1 rounded-lg">📅 Bérlés /nap</span>
+                        <span class="bg-white/10 px-3 py-1 rounded-lg">⚡ Bérlés /óra</span>
+                        <span class="bg-white/10 px-3 py-1 rounded-lg">🛠️ Bérlés /adott munka</span>
+                        <span class="bg-white/10 px-3 py-1 rounded-lg">💰 Rugalmas kaució</span>
+                    </div>
+                </div>
+
+                <!-- Dekoratív háttér ikon -->
+                <div class="absolute -right-8 -bottom-10 opacity-10 text-white text-[220px] pointer-events-none hidden md:block">
+                    <i class="fa-solid fa-trowel"></i>
+                </div>
+            </div>
+
+            <!-- Kereső és szűrősáv -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+                    <!-- Kulcsszó kereső -->
+                    <div class="lg:col-span-5 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                        <input type="text" id="search-input" placeholder="Mit keresel? (pl. ásó, fűkasza, létrák, ütvefúró...)" class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all">
+                    </div>
+
+                    <!-- Árazási elszámolás szűrő (/nap, /munka, stb.) -->
+                    <div class="lg:col-span-3">
+                        <select id="unit-filter" class="w-full py-2.5 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none cursor-pointer">
+                            <option value="Mind">⏱️ Bármilyen árazás</option>
+                            <option value="nap">📅 /nap alapon</option>
+                            <option value="óra">⚡ /óra alapon</option>
+                            <option value="munka">🛠️ /munka (alkalom)</option>
+                            <option value="hétvége">🏖️ /hétvége</option>
+                        </select>
+                    </div>
+
+                    <!-- Település / Kerület -->
+                    <div class="lg:col-span-2">
+                        <input type="text" id="location-input" list="hungarian-cities" placeholder="Település / Kerület" class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none">
+                    </div>
+
+                    <!-- Max ár -->
+                    <div class="lg:col-span-2">
+                        <input type="number" id="max-price-input" placeholder="Max. Ft" class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none">
+                    </div>
+                </div>
+
+                <!-- Kategória tabletták -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar" id="category-pills">
+                    <!-- JS tölti be -->
+                </div>
+            </div>
+
+            <!-- Eredmények fejléc -->
+            <div class="flex items-center justify-between">
+                <span id="items-count" class="text-xs font-bold text-slate-500 uppercase tracking-wider">Betöltés...</span>
+                <button onclick="resetFilters()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i> Szűrők alaphelyzetbe
+                </button>
+            </div>
+
+            <!-- Eszközök rácsa -->
+            <div id="items-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- JS rendereli a kártyákat -->
+            </div>
+        </div>
+
+        <!-- 2. NÉZET: IRÁNYÍTÓPULT (BÉRLÉSEK ÉS KIADÁSOK) -->
+        <div id="dashboard-view" class="hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900">Bérléskezelő Központ</h2>
+                    <p class="text-xs text-slate-500">Kövesd nyomon a kiadott szerszámaidat és a saját foglalásaidat!</p>
+                </div>
+                <button onclick="openNewItemModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i> Új eszköz hirdetése
+                </button>
+            </div>
+
+            <!-- Dashboard tartalom -->
+            <div id="dashboard-content">
+                <!-- JS tölti be az aloldalt -->
+            </div>
+        </div>
+
+        <!-- 3. NÉZET: TITKOS ADMINISZTRÁCIÓS & PÉNZÜGYI KÖZPONT -->
+        <div id="admin-view" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-bold mb-1.5">
+                        <i class="fa-solid fa-crown text-amber-500"></i> Tulajdonosi Adminisztrációs Panel
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-900">Pénzügyi & Rendszer Statisztikák</h2>
+                    <p class="text-xs text-slate-500">Havi előfizetések, bevételek és platform aktivitás valós időben</p>
+                </div>
+                <button onclick="loadAdminData()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-2 self-start sm:self-auto">
+                    <i class="fa-solid fa-arrows-rotate"></i> Adatok frissítése
+                </button>
+            </div>
+
+            <!-- Admin tartalom (JS tölti be) -->
+            <div id="admin-content">
+                <div class="py-12 text-center text-slate-500">
+                    <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-600 mb-2"></i>
+                    <p>Pénzügyi adatok betöltése...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. NÉZET: BELSŐ ÜZENETEK & CHAT -->
+        <div id="messages-view" class="hidden space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-1">
+                        <i class="fa-solid fa-comments text-emerald-600"></i> Belső Üzenetközpont
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-900">Beszélgetések & Kapcsolatfelvétel</h2>
+                    <p class="text-xs text-slate-500">Közvetlen üzenetváltás a bérbeadókkal és bérlőkkel valós időben</p>
+                </div>
+                <button onclick="loadMessagesData(state.messagesFolder)" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span class="hidden sm:inline">Frissítés</span>
+                </button>
+            </div>
+
+            <!-- Fő Chat Konténer (Split view) -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[640px] flex flex-col md:flex-row">
+                
+                <!-- Bal oldali oszlop: Beszélgetéslista és szűrők -->
+                <div class="w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col bg-slate-50/50">
+                    <!-- Felső vezérlősáv -->
+                    <div class="p-3.5 border-b border-slate-200 bg-white space-y-3">
+                        <!-- Mappa választó (Beérkező / Archivált) -->
+                        <div class="flex items-center p-1 bg-slate-100 rounded-xl">
+                            <button id="msg-tab-inbox" onclick="switchMessagesFolder('inbox')" class="flex-1 py-1.5 text-xs font-extrabold rounded-lg bg-white text-slate-900 shadow-sm transition-all flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-inbox text-emerald-600"></i>
+                                <span>Beérkező</span>
+                            </button>
+                            <button id="msg-tab-archived" onclick="switchMessagesFolder('archived')" class="flex-1 py-1.5 text-xs font-extrabold rounded-lg text-slate-500 hover:text-slate-800 transition-all flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-box-archive text-slate-400"></i>
+                                <span>Archivált</span>
+                            </button>
+                        </div>
+
+                        <!-- Gyorskereső -->
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="msg-search-input" oninput="filterConversations(this.value)" placeholder="Keresés partner vagy gép szerint..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Beszélgetés lista elemek -->
+                    <div id="conversations-list-container" class="flex-1 overflow-y-auto divide-y divide-slate-100 max-h-[500px] md:max-h-[600px]">
+                        <!-- JS tölti be -->
+                    </div>
+                </div>
+
+                <!-- Jobb oldali oszlop: Aktív csevegőablak / Chat -->
+                <div id="chat-pane-container" class="flex-1 flex flex-col bg-white min-h-[500px]">
+                    <!-- JS tölti be az aktív chatet vagy az üres állapotot -->
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- LÁBLÉC -->
+    <footer class="bg-white border-t border-slate-200 py-8 mt-12 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 space-y-2">
+            <div class="flex items-center justify-center gap-2 mb-1">
+                <img src="/static/logo.png" class="w-6 h-6 rounded-lg object-contain">
+                <span class="font-black text-slate-800 text-sm">Megosztó<span class="text-xs text-emerald-500 font-bold ml-0.5">.hu</span></span>
+            </div>
+            <p class="font-bold text-slate-700">Megosztó Platform (megoszto.hu) — Közösségi P2P Eszköz- és Szerszámbérlés</p>
+
+            <p>Bérelj ásót, fűkaszát, mosót, vagy add ki a fészerben pihenő eszközeidet másoknak rugalmas elszámolással!</p>
+        </div>
+    </footer>
+
+
+    <!-- MODAL 1: ESZKÖZ ADATLAP & BÉRLÉSI KALKULÁTOR -->
+    <div id="item-modal" class="fixed inset-0 z-50 items-center justify-center p-4 sm:p-6 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop transition-opacity" onclick="closeItemModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <!-- Bezárás gomb -->
+            <button onclick="closeItemModal()" class="absolute top-5 right-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div id="item-modal-content">
+                <!-- JS generálja a részletes tartalmat és a bérleti kalkulátort -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ÚJ HIRDETÉS FELADÁSA -->
+    <div id="new-item-modal" class="fixed inset-0 z-50 items-center justify-center p-4 sm:p-6 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeNewItemModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                <div>
+                    <h3 class="text-xl font-black text-slate-900">Új eszköz meghirdetése bérlésre</h3>
+                    <p class="text-xs text-slate-500">Add meg a szerszámod adatait és válaszd ki a bérleti díj elszámolását!</p>
+                </div>
+                <button onclick="closeNewItemModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="submitNewItem(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Eszköz megnevezése *</label>
+                    <input type="text" name="title" required placeholder="Pl. Fiskars Ergonómikus Kerti Ásó, Stihl Fűkasza..." class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Kategória *</label>
+                        <select name="category" required class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Kertészet">🌱 Kertészet</option>
+                            <option value="Barkácsolás">🔨 Barkácsolás</option>
+                            <option value="Takarítás">✨ Takarítás</option>
+                            <option value="Építkezés">🏗️ Építkezés</option>
+                            <option value="Autó & Garázs">🚗 Autó & Garázs</option>
+                            <option value="Rendezvény & Hobbi">🎉 Rendezvény & Hobbi</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Állapot</label>
+                        <select name="condition" class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Újszerű">Újszerű</option>
+                            <option value="Jó állapotú" selected>Jó állapotú</option>
+                            <option value="Használt, működőképes">Használt, működőképes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Árazás & Elszámolás választó -->
+                <div class="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3">
+                    <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Bérleti Díj és Konstrukció</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="sm:col-span-1">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Bérleti díj (Ft) *</label>
+                            <input type="number" name="price" required min="100" placeholder="800" class="w-full px-3 py-2.5 text-sm font-bold text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                        <div class="sm:col-span-1">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Elszámolási egység *</label>
+                            <select name="price_unit" class="w-full px-3 py-2.5 text-sm font-bold text-emerald-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="nap">📅 /nap</option>
+                                <option value="óra">⚡ /óra</option>
+                                <option value="munka">🛠️ /munka (alkalom)</option>
+                                <option value="hétvége">🏖️ /hétvége</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Kaució / Letét (Ft)</label>
+                            <input type="number" name="deposit" min="0" value="0" placeholder="2000" class="w-full px-3 py-2.5 text-sm font-semibold text-amber-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Átvételi helyszín (Település / Kerület) *</label>
+                    <input type="text" id="new-item-location" name="location" list="hungarian-cities" required placeholder="Kezdd el gépelni a település nevét (pl. Szentendre)..." class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+
+                <!-- Képfeltöltés (Fájl tallózás vagy Drag & Drop + Előnézet) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Eszköz fotója (Kép feltöltése gépről/telefonról) *</label>
+                    <input type="file" id="new-item-file" accept="image/*" class="hidden" onchange="handleImageFileSelect(event)">
+                    <input type="hidden" id="new-item-image-url" name="image_url">
+
+                    <!-- Feltöltő doboz -->
+                    <div id="upload-dropzone" onclick="document.getElementById('new-item-file').click()" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-emerald-50/30 rounded-2xl p-4 text-center cursor-pointer transition-all">
+                        <div class="flex flex-col items-center justify-center gap-1.5 py-2">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg shadow-sm">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                            </div>
+                            <p class="text-xs font-bold text-slate-700">Kattints a kép kiválasztásához a gépedről/telefonodról</p>
+                            <p class="text-[11px] text-slate-400">JPG, PNG, WEBP vagy GIF formátum (max 10MB)</p>
+                        </div>
+                    </div>
+
+                    <!-- Előnézeti doboz ha van kiválasztott kép -->
+                    <div id="image-preview-container" class="hidden mt-3 relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 h-44">
+                        <img id="image-preview" class="w-full h-full object-cover">
+                        <button type="button" onclick="removeSelectedImage()" class="absolute top-2 right-2 px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow transition-colors flex items-center gap-1">
+                            <i class="fa-solid fa-trash"></i> Törlés / Másik kép
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Leírás & Tartozékok *</label>
+                    <textarea name="description" rows="3" required placeholder="Mire alkalmas, milyen állapotban van, mit adsz hozzá (pl. fúrószárak, védőszemüveg, kábel)..." class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeNewItemModal()" class="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
+                        Mégse
+                    </button>
+                    <button type="submit" id="submit-item-btn" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-2">
+                        <span>Hirdetés Közzététele</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2.5: HIRDETÉS MÓDOSÍTÁSA -->
+    <div id="edit-item-modal" class="fixed inset-0 z-50 items-center justify-center p-4 sm:p-6 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeEditItemModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                <div>
+                    <h3 class="text-xl font-black text-slate-900">Hirdetés Módosítása</h3>
+                    <p class="text-xs text-slate-500">Módosítsd az eszköz adatait, bérleti díját vagy állapotát!</p>
+                </div>
+                <button onclick="closeEditItemModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="submitEditItem(event)" class="space-y-4">
+                <input type="hidden" id="edit-item-id">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Eszköz megnevezése *</label>
+                    <input type="text" id="edit-item-title" required class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Kategória *</label>
+                        <select id="edit-item-category" required class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Kertészet">🌱 Kertészet</option>
+                            <option value="Barkácsolás">🔨 Barkácsolás</option>
+                            <option value="Takarítás">✨ Takarítás</option>
+                            <option value="Építkezés">🏗️ Építkezés</option>
+                            <option value="Autó & Garázs">🚗 Autó & Garázs</option>
+                            <option value="Rendezvény & Hobbi">🎉 Rendezvény & Hobbi</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Állapot</label>
+                        <select id="edit-item-condition" class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Újszerű">Újszerű</option>
+                            <option value="Jó állapotú">Jó állapotú</option>
+                            <option value="Használt, működőképes">Használt, működőképes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Árazás & Elszámolás választó -->
+                <div class="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3">
+                    <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Bérleti Díj és Konstrukció</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="sm:col-span-1">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Bérleti díj (Ft) *</label>
+                            <input type="number" id="edit-item-price" required min="100" class="w-full px-3 py-2.5 text-sm font-bold text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                        <div class="sm:col-span-1">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Elszámolási egység *</label>
+                            <select id="edit-item-price-unit" class="w-full px-3 py-2.5 text-sm font-bold text-emerald-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="nap">📅 /nap</option>
+                                <option value="óra">⚡ /óra</option>
+                                <option value="munka">🛠️ /munka (alkalom)</option>
+                                <option value="hétvége">🏖️ /hétvége</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Kaució / Letét (Ft)</label>
+                            <input type="number" id="edit-item-deposit" min="0" class="w-full px-3 py-2.5 text-sm font-semibold text-amber-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Átvételi helyszín (Település / Kerület) *</label>
+                    <input type="text" id="edit-item-location" required placeholder="Település neve..." class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" data-city-autocomplete="true">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Leírás & Tartozékok *</label>
+                    <textarea id="edit-item-description" rows="3" required class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeEditItemModal()" class="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
+                        Mégse
+                    </button>
+                    <button type="submit" id="submit-edit-item-btn" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-2">
+                        <span>Módosítások Mentése</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: ÉRTÉKELÉS ÍRÁSA -->
+    <div id="review-modal" class="fixed inset-0 z-50 items-center justify-center p-4" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeReviewModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl z-10 animate-fade-in">
+            <h3 class="text-lg font-black text-slate-900 mb-1">Bérlés értékelése</h3>
+            <p id="review-modal-title" class="text-xs text-slate-500 mb-4 font-semibold"></p>
+
+            <form onsubmit="submitReview(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Hány csillagot adsz az eszközre és az átvételre?</label>
+                    <div class="flex items-center justify-center gap-2 text-2xl py-2">
+                        <button type="button" onclick="setRatingStars(1)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
+                        <button type="button" onclick="setRatingStars(2)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
+                        <button type="button" onclick="setRatingStars(3)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
+                        <button type="button" onclick="setRatingStars(4)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
+                        <button type="button" onclick="setRatingStars(5)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Vélemény / Megjegyzés:</label>
+                    <textarea id="review-comment" rows="3" required placeholder="Hogy működött az eszköz? Rendben ment az átadás-átvétel?" class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeReviewModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">Mégse</button>
+                    <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow">Értékelés beküldése</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: ELŐFIZETÉSI CSOMAGOK -->
+    <div id="subscription-modal" class="fixed inset-0 z-50 items-center justify-center p-4 sm:p-6 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeSubscriptionModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-5xl w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold mb-2">
+                        <i class="fa-solid fa-crown text-amber-500"></i> Hirdetési Csomagok & Bővítés
+                    </div>
+                    <h3 class="text-2xl font-black text-slate-900">Válassz Hirdetési Csomagot</h3>
+                    <p class="text-xs sm:text-sm text-slate-500">Mindenki <strong>1 terméket ingyen</strong> tölthet fel. Ha több szerszámot vagy gépet szeretnél kiadni, válassz csomagot!</p>
+                </div>
+                <button onclick="closeSubscriptionModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Csomagok rácsa -->
+            <div id="plans-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <!-- JS generálja a 4 csomagot -->
+            </div>
+
+            <div class="mt-8 bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+                <div class="flex items-center gap-2 font-medium">
+                    <i class="fa-solid fa-shield-halved text-emerald-600 text-sm"></i>
+                    <span>Bármikor lemondható vagy módosítható. Azonnali hirdetéshely jóváírás!</span>
+                </div>
+                <div class="flex items-center gap-2 font-bold text-slate-500">
+                    <span class="text-[11px] uppercase tracking-wider text-slate-400">Biztonságos fizetés:</span>
+                    <span class="px-2 py-1 bg-white rounded-lg border border-slate-200 text-[#635BFF] font-black text-xs flex items-center gap-1">
+                        <i class="fa-brands fa-stripe text-lg"></i> stripe
+                    </span>
+                    <i class="fa-brands fa-cc-visa text-blue-600 text-lg"></i>
+                    <i class="fa-brands fa-cc-mastercard text-red-500 text-lg"></i>
+                    <i class="fa-brands fa-apple-pay text-slate-800 text-lg"></i>
+                    <i class="fa-brands fa-google-pay text-slate-800 text-lg"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4B: STRIPE BIZTONSÁGOS KÁRTYÁS FIZETÉS (CHECKOUT) -->
+    <div id="stripe-checkout-modal" class="fixed inset-0 z-50 items-center justify-center p-4 sm:p-6 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeStripeCheckoutModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[92vh] overflow-y-auto border border-slate-100">
+            <!-- Bezárás -->
+            <button onclick="closeStripeCheckoutModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Stripe Fejléc -->
+            <div class="flex items-center gap-3 pb-4 border-b border-slate-100 mb-5">
+                <div class="w-10 h-10 rounded-2xl bg-[#635BFF] flex items-center justify-center text-white text-xl shadow-md shadow-[#635BFF]/30">
+                    <i class="fa-brands fa-stripe"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-900">Stripe Biztonságos Kártyás Fizetés</h3>
+                    <p class="text-[11px] text-slate-500">256 bites SSL titkosítással védett tranzakció</p>
+                </div>
+            </div>
+
+            <!-- Rendelés összesítő -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-5 flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-500 font-bold uppercase tracking-wider block">Kiválasztott Csomag:</span>
+                    <h4 id="stripe-checkout-plan-name" class="text-base font-black text-slate-900">Kertbarát Csomag</h4>
+                    <span id="stripe-checkout-plan-desc" class="text-xs text-emerald-700 font-semibold">Maximum 3 db hirdetés</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-500 block">Fizetendő:</span>
+                    <span id="stripe-checkout-amount" class="text-xl font-extrabold text-[#635BFF]">1 490 Ft</span>
+                    <span class="text-[10px] text-slate-400 block">/ hónap</span>
+                </div>
+            </div>
+
+            <!-- Kártya Form -->
+            <form id="stripe-payment-form" onsubmit="handleStripePaymentSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kártyabirtokos neve</label>
+                    <input type="text" id="stripe-card-name" required placeholder="pl. Kovács János" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#635BFF] outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Bankkártya száma</label>
+                    <div class="relative">
+                        <input type="text" id="stripe-card-number" required placeholder="4242 •••• •••• 4242" value="4242 4242 4242 4242" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#635BFF] outline-none font-mono">
+                        <div class="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5 text-slate-400 text-base">
+                            <i class="fa-brands fa-cc-visa text-blue-600"></i>
+                            <i class="fa-brands fa-cc-mastercard text-red-500"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Lejárat (HH/ÉÉ)</label>
+                        <input type="text" id="stripe-card-expiry" required placeholder="12/28" value="12/28" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#635BFF] outline-none font-mono text-center">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">CVC / CVV</label>
+                        <input type="text" id="stripe-card-cvc" required placeholder="123" value="123" maxlength="4" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#635BFF] outline-none font-mono text-center">
+                    </div>
+                </div>
+
+                <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-800 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-emerald-600 text-sm flex-shrink-0"></i>
+                    <span><strong>Stripe Teszt Sandbox:</strong> Valós levonás nem történik. A fizetés azonnal aktiválja a megadott hirdetéshelyeket a fiókodban!</span>
+                </div>
+
+                <button type="submit" id="stripe-submit-btn" class="w-full py-3.5 px-4 bg-[#635BFF] hover:bg-[#534be0] text-white font-black text-sm rounded-xl shadow-lg shadow-[#635BFF]/30 transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-lock text-xs"></i>
+                    <span id="stripe-submit-text">Biztonságos Fizetés Indítása</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4C: HIRDETÉS KIEMELÉSE (BOOST MODAL) -->
+    <div id="boost-modal" class="fixed inset-0 z-50 items-center justify-center p-4 sm:p-6 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeBoostModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[92vh] overflow-y-auto border border-amber-100">
+            <!-- Bezárás -->
+            <button onclick="closeBoostModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Fejléc -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold mb-2">
+                    <i class="fa-solid fa-bolt text-amber-500"></i> Hirdetés Kiemelése (Boost)
+                </div>
+                <h3 class="text-2xl font-black text-slate-900">Tedd az első helyre a hirdetésed!</h3>
+                <p class="text-xs text-slate-500 mt-1">A kiemelt szerszámok mindig a lista tetején jelennek meg arany kitűzővel.</p>
+            </div>
+
+            <!-- Kiemelendő termék adatai -->
+            <div id="boost-item-preview" class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 mb-5 flex items-center gap-3">
+                <!-- JS tölti be a kiválasztott termék kisképét és címét -->
+            </div>
+
+            <!-- Kiemelési csomagok választása -->
+            <div class="space-y-3 mb-6">
+                <!-- 1 Napos Kiemelés -->
+                <label onclick="selectBoostPlan('boost_1_day')" id="boost-card-boost_1_day" class="block relative p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/40 cursor-pointer transition-all hover:shadow-md">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="boost_plan_choice" value="boost_1_day" checked class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-sm text-slate-900">⚡ 1 Napos Villám Kiemelés</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">24 óra</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">24 órás garantált lista élére sorolás és arany kiemelt kitűző</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-lg font-black text-emerald-700">390 Ft</span>
+                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Egyszeri díj</span>
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 1 Heti Kiemelés (7 Nap) -->
+                <label onclick="selectBoostPlan('boost_7_days')" id="boost-card-boost_7_days" class="block relative p-4 rounded-2xl border-2 border-slate-200 bg-white cursor-pointer transition-all hover:shadow-md hover:border-amber-400">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="boost_plan_choice" value="boost_7_days" class="w-4 h-4 text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-sm text-slate-900">🚀 1 Heti Prémium Kiemelés</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">40% Kedvezmény</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">7 napos (1 hetes) folyamatos TOP listahelyezés a maximális bérlőkért</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-lg font-black text-amber-600">1 590 Ft</span>
+                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Egyszeri díj</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Tájékoztató & Fizetés gomb -->
+            <div class="space-y-3">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-lock text-emerald-600"></i> Egyszeri bankkártyás fizetés (Stripe). Nem újul meg.</span>
+                    <span class="font-bold text-slate-800">0% Rejtett Költség</span>
+                </div>
+
+                <button type="button" onclick="startBoostPayment()" class="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-bolt text-xs"></i>
+                    <span id="boost-pay-btn-text">Kiemelés Aktiválása (390 Ft)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: BEJELENTKEZÉS ÉS REGISZTRÁCIÓ -->
+    <div id="auth-modal" class="fixed inset-0 z-50 items-center justify-center p-4" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeAuthModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <!-- Bezárás gomb -->
+            <button onclick="closeAuthModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Fülek (Bejelentkezés / Regisztráció) -->
+            <div class="flex items-center gap-2 border-b border-slate-100 pb-3 mb-5">
+                <button id="auth-tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 text-sm font-extrabold text-emerald-600 border-b-2 border-emerald-600 transition-colors">
+                    Bejelentkezés
+                </button>
+                <button id="auth-tab-register" onclick="switchAuthTab('register')" class="flex-1 py-2 text-sm font-extrabold text-slate-400 hover:text-slate-700 transition-colors">
+                    Új Regisztráció
+                </button>
+            </div>
+
+            <!-- ⚡ GYORS FIÓKVÁLASZTÓ (1-Kattintásos Belépés) -->
+            <div class="mb-5 bg-gradient-to-br from-slate-50 to-emerald-50/30 p-3.5 rounded-2xl border border-slate-200 shadow-inner">
+                <div class="flex items-center justify-between mb-2.5">
+                    <span class="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt text-amber-500"></i> Válaszd ki a fiókot (1 Kattintás):
+                    </span>
+                    <span class="text-[10px] text-emerald-700 font-extrabold bg-emerald-100 px-2 py-0.5 rounded-full">Gyors Belépés</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <!-- 1. Kornél (Admin / Pro fiók) -->
+                    <button type="button" onclick="quickLoginUser('kulovanyi.kornel@gmail.com')" class="p-2.5 bg-white hover:bg-purple-50 hover:border-purple-300 border border-slate-200 rounded-xl transition-all text-left flex items-center gap-2.5 group shadow-sm hover:shadow active:scale-98">
+                        <img src="https://lh3.googleusercontent.com/a/ACg8ocIuDqCb0ZC_qwAbIJ4Wyb2R4rSJqiW7cgQ4jXPhJvmSGUUnlFD62Q=s96-c" class="w-9 h-9 rounded-full object-cover ring-2 ring-purple-500/40 shrink-0">
+                        <div class="min-w-0">
+                            <div class="text-xs font-black text-slate-900 truncate group-hover:text-purple-700 flex items-center gap-1">
+                                <span>Kornél</span>
+                                <span class="px-1.5 py-0.2 bg-purple-100 text-purple-800 text-[9px] font-black rounded-full">👑 Admin</span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 block truncate">Ezermester (Pro)</span>
+                        </div>
+                    </button>
+
+                    <!-- 2. Nagy Péter (Sima Felhasználó / Ingyenes fiók) -->
+                    <button type="button" onclick="quickLoginUser('peter.nagy@gmail.com')" class="p-2.5 bg-white hover:bg-emerald-50 hover:border-emerald-300 border border-slate-200 rounded-xl transition-all text-left flex items-center gap-2.5 group shadow-sm hover:shadow active:scale-98">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80" class="w-9 h-9 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0">
+                        <div class="min-w-0">
+                            <div class="text-xs font-black text-slate-900 truncate group-hover:text-emerald-700 flex items-center gap-1">
+                                <span>Nagy Péter</span>
+                                <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-full">Ingyenes</span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 block truncate">Sima Bérlő (1 gép)</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- KÖZÖSSÉGI BELÉPÉS (GOOGLE) -->
+            <div class="mb-5">
+                <!-- Google Gomb -->
+                <button type="button" onclick="startSocialLogin('google')" class="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl border border-slate-300 shadow-sm flex items-center justify-center gap-3 transition-all hover:border-slate-400 hover:shadow">
+                    <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span>Folytatás Google-fiókkal</span>
+                </button>
+            </div>
+
+            <!-- Elválasztó vonal -->
+            <div class="relative my-5">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+                <div class="relative flex justify-center text-[11px] uppercase tracking-wider"><span class="bg-white px-3 text-slate-400 font-bold">vagy hagyományos e-maillel</span></div>
+            </div>
+
+            <!-- 1. Form: Bejelentkezés -->
+            <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">E-mail cím</label>
+                    <input type="email" id="login-email" required placeholder="pl. peter.nagy@gmail.com" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Jelszó</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl shadow-md shadow-emerald-600/20 transition-all">
+                    Bejelentkezés
+                </button>
+            </form>
+
+
+            <!-- 2. Form: Regisztráció -->
+            <form id="register-form" onsubmit="handleRegisterSubmit(event)" class="hidden space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Teljes név *</label>
+                    <input type="text" id="reg-name" required placeholder="Pl. Kiss Péter" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">E-mail cím *</label>
+                    <input type="email" id="reg-email" required placeholder="peter@pelda.hu" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Jelszó *</label>
+                    <input type="password" id="reg-password" required minlength="4" placeholder="Legalább 4 karakter" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Telefonszám</label>
+                        <input type="tel" id="reg-phone" placeholder="+36 30 123 4567" class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Település / Kerület</label>
+                        <input type="text" id="reg-city" list="hungarian-cities" placeholder="Pl. Budapest, XI. vagy Győr..." class="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-800 font-medium">
+                    🎉 Regisztrációddal automatikusan kapsz <strong>1 ingyenes hirdetési helyet</strong>!
+                </div>
+                <button type="submit" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm rounded-xl shadow-md transition-all">
+                    Fiók Létrehozása
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 6: KÖZÖSSÉGI FIÓK KIVÁLASZTÓ / PROVÍDER ABLAK (GOOGLE & FACEBOOK) -->
+    <div id="social-auth-modal" class="fixed inset-0 z-50 items-center justify-center p-4" style="display: none;">
+        <div class="fixed inset-0 modal-backdrop" onclick="closeSocialAuthModal()"></div>
+        <div class="relative bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <!-- Bezárás gomb -->
+            <button onclick="closeSocialAuthModal()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Provider fejléc és logó -->
+            <div id="social-modal-header" class="text-center mb-6">
+                <!-- JS tölti be: Google vagy Facebook logó és szöveg -->
+            </div>
+
+            <!-- Fiókválasztó opciók -->
+            <div id="social-accounts-list" class="space-y-2.5 mb-6">
+                <!-- JS generálja a fiókokat -->
+            </div>
+
+            <!-- Egyéni adatok megadása opció -->
+            <div class="border-t border-slate-100 pt-4">
+                <button id="toggle-custom-social-btn" onclick="toggleCustomSocialForm()" class="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5 transition-colors">
+                    <i class="fa-solid fa-user-plus text-[11px]"></i> Másik közösségi fiók használata
+                </button>
+
+                <form id="custom-social-form" onsubmit="handleCustomSocialSubmit(event)" class="hidden mt-3 space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Név a profilban *</label>
+                        <input type="text" id="social-custom-name" required placeholder="Pl. Minta János" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">E-mail cím *</label>
+                        <input type="email" id="social-custom-email" required placeholder="janos@gmail.com" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Település</label>
+                            <input type="text" id="social-custom-city" list="hungarian-cities" placeholder="Pl. Szeged" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Telefonszám</label>
+                            <input type="tel" id="social-custom-phone" placeholder="+36 30 999 8888" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
+                    <button type="submit" id="social-custom-submit-btn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all">
+                        Belépés és 1 ingyenes hirdetés aktiválása
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAGYARORSZÁGI TELEPÜLÉSEK AUTOMATIKUS KIEGÉSZÍTŐ (DATALIST) -->
+    <datalist id="hungarian-cities"></datalist>
+
+    <!-- ÉRTESÍTÉSI TOAST KONTÉNER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Firebase JS SDK (v10 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+
+    <!-- Stripe JS SDK -->
+    <script src="https://js.stripe.com/v3/"></script>
+
+    <!-- Alkalmazás JS -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

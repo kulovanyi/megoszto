@@ -1,0 +1,164 @@
+{
+  "users": {
+    "1": {
+      "id": 1,
+      "name": "Kornél Kuloványi",
+      "email": "kulovanyi.kornel@gmail.com",
+      "password": "oauth_google",
+      "phone": "",
+      "city": "Budapest",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIuDqCb0ZC_qwAbIJ4Wyb2R4rSJqiW7cgQ4jXPhJvmSGUUnlFD62Q=s96-c",
+      "rating": 5.0,
+      "reviews_count": 0,
+      "subscription_plan": "pro_10",
+      "max_items": 10,
+      "auth_provider": "google",
+      "created_at": "2026-09-04 17:00:57"
+    },
+    "2": {
+      "id": 2,
+      "name": "Nagy Péter (Bérlő)",
+      "email": "peter.nagy@gmail.com",
+      "password": "password",
+      "phone": "+36 30 765 4321",
+      "city": "Budapest",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "rating": 5.0,
+      "reviews_count": 0,
+      "subscription_plan": "free",
+      "max_items": 1,
+      "auth_provider": "local",
+      "role": "user",
+      "is_admin": false,
+      "created_at": "2026-09-04 12:00:00"
+    }
+  },
+  "items": {
+    "1": {
+      "id": 1,
+      "user_id": 1,
+      "title": "Szekrény",
+      "category": "Barkácsolás",
+      "description": "Kényelmes ülni rajta",
+      "price": 2000,
+      "price_unit": "nap",
+      "deposit": 20000,
+      "image_url": "/static/uploads/3a1948cd10d04184bbce02bc9846ea84.png",
+      "location": "Balassagyarmat",
+      "condition": "Jó állapotú",
+      "available": 1,
+      "created_at": "2026-09-04 17:03:28",
+      "featured_until": "2026-09-05 18:52:33"
+    }
+  },
+  "rentals": {},
+  "reviews": {},
+  "meta": {
+    "user_seq": 2,
+    "item_seq": 1,
+    "rental_seq": 0,
+    "review_seq": 0,
+    "conv_seq": 1,
+    "msg_seq": 4
+  },
+  "transactions": {
+    "cs_test_boost_123": {
+      "id": "cs_test_boost_123",
+      "type": "boost",
+      "payment_type": "one_time",
+      "item_id": 1,
+      "item_title": "Szekrény",
+      "plan_id": "boost_1_day",
+      "plan_name": "1 Napos Villám Kiemelés",
+      "amount_huf": 390,
+      "currency": "HUF",
+      "user_id": 1,
+      "user_name": "Kornél Kuloványi",
+      "user_email": "kulovanyi.kornel@gmail.com",
+      "session_id": "cs_test_boost_123",
+      "status": "paid",
+      "provider": "stripe",
+      "created_at": "2026-09-04 18:52:05"
+    },
+    "cs_test_boost_456": {
+      "id": "cs_test_boost_456",
+      "type": "boost",
+      "payment_type": "one_time",
+      "item_id": 1,
+      "item_title": "Szekrény",
+      "plan_id": "boost_1_day",
+      "plan_name": "1 Napos Villám Kiemelés",
+      "amount_huf": 390,
+      "currency": "HUF",
+      "user_id": 1,
+      "user_name": "Kornél Kuloványi",
+      "user_email": "kulovanyi.kornel@gmail.com",
+      "session_id": "cs_test_boost_456",
+      "status": "paid",
+      "provider": "stripe",
+      "created_at": "2026-09-04 18:52:33"
+    }
+  },
+  "conversations": {
+    "conv_1": {
+      "id": "conv_1",
+      "participants": [
+        1,
+        2
+      ],
+      "item_id": 1,
+      "last_message": "oké",
+      "last_message_at": "2026-09-04 20:25:10",
+      "last_sender_id": 1,
+      "unread_counts": {
+        "2": 0,
+        "1": 0
+      },
+      "archived_by": [],
+      "deleted_by": [],
+      "created_at": "2026-09-04 19:06:38"
+    }
+  },
+  "messages": {
+    "1": {
+      "id": 1,
+      "conversation_id": "conv_1",
+      "sender_id": 1,
+      "receiver_id": 2,
+      "content": "Szia, erdeklodnek a funyiro irant!",
+      "item_id": 1,
+      "created_at": "2026-09-04 19:06:38",
+      "is_read": true
+    },
+    "2": {
+      "id": 2,
+      "conversation_id": "conv_1",
+      "sender_id": 2,
+      "receiver_id": 1,
+      "content": "Szia Kornel! Igen, megvan a gep, viheted holnap reggel.",
+      "item_id": 1,
+      "created_at": "2026-09-04 19:06:46",
+      "is_read": true
+    },
+    "3": {
+      "id": 3,
+      "conversation_id": "conv_1",
+      "sender_id": 2,
+      "receiver_id": 1,
+      "content": "És még mehet utána is",
+      "item_id": 1,
+      "created_at": "2026-09-04 20:21:56",
+      "is_read": true
+    },
+    "4": {
+      "id": 4,
+      "conversation_id": "conv_1",
+      "sender_id": 1,
+      "receiver_id": 2,
+      "content": "oké",
+      "item_id": 1,
+      "created_at": "2026-09-04 20:25:10",
+      "is_read": true
+    }
+  }
+}
