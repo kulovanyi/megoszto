@@ -391,35 +391,79 @@ async function initAuth() {
     renderAuthUI();
 }
 
+function toggleUserDropdown(forceState) {
+    const menu = document.getElementById('user-dropdown-menu');
+    const chevron = document.getElementById('user-menu-chevron');
+    if (!menu) return;
+
+    const isHidden = menu.classList.contains('hidden');
+    const shouldOpen = forceState !== undefined ? forceState : isHidden;
+
+    if (shouldOpen) {
+        menu.classList.remove('hidden');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+    } else {
+        menu.classList.add('hidden');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
+}
+
+// Kattintás kívülre -> lenyíló menü bezárása
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('user-dropdown-menu');
+    const trigger = document.getElementById('user-menu-trigger');
+    if (menu && !menu.classList.contains('hidden')) {
+        if (!menu.contains(e.target) && !trigger?.contains(e.target)) {
+            toggleUserDropdown(false);
+        }
+    }
+});
+
 function renderAuthUI() {
     const loggedInBox = document.getElementById('auth-logged-in');
     const loggedOutBox = document.getElementById('auth-logged-out');
     const nameEl = document.getElementById('current-user-name');
     const avatarEl = document.getElementById('current-user-avatar');
-    const planBadge = document.getElementById('user-plan-badge');
+    const dropdownAvatar = document.getElementById('dropdown-user-avatar');
+    const dropdownName = document.getElementById('dropdown-user-name');
+    const dropdownEmail = document.getElementById('dropdown-user-email');
+    const dropdownAdminBtn = document.getElementById('dropdown-admin-btn');
+    const adminBtn = document.getElementById('admin-nav-btn');
 
     if (state.currentUser) {
         if (loggedInBox) loggedInBox.classList.remove('hidden');
         if (loggedOutBox) loggedOutBox.classList.add('hidden');
-        if (nameEl) {
-            let providerBadge = '';
-            if (state.currentUser.auth_provider === 'google') {
-                providerBadge = `<span title="Google-fiókkal bejelentkezve" class="inline-flex items-center text-[10px] ml-1 text-slate-400"><i class="fa-brands fa-google text-red-500"></i></span>`;
-            } else if (state.currentUser.auth_provider === 'facebook') {
-                providerBadge = `<span title="Facebookkal bejelentkezve" class="inline-flex items-center text-[10px] ml-1 text-slate-400"><i class="fa-brands fa-facebook text-blue-600"></i></span>`;
-            }
-            nameEl.innerHTML = `${state.currentUser.name} ${providerBadge}`;
+
+        let providerBadge = '';
+        if (state.currentUser.auth_provider === 'google') {
+            providerBadge = `<span title="Google-fiókkal bejelentkezve" class="inline-flex items-center text-[10px] ml-1 text-slate-400"><i class="fa-brands fa-google text-red-500"></i></span>`;
+        } else if (state.currentUser.auth_provider === 'facebook') {
+            providerBadge = `<span title="Facebookkal bejelentkezve" class="inline-flex items-center text-[10px] ml-1 text-slate-400"><i class="fa-brands fa-facebook text-blue-600"></i></span>`;
         }
-        if (avatarEl) avatarEl.src = state.currentUser.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.currentUser.name}`;
+
+        const avatarSrc = state.currentUser.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.currentUser.name}`;
+
+        if (nameEl) nameEl.innerHTML = `${state.currentUser.name} ${providerBadge}`;
+        if (avatarEl) avatarEl.src = avatarSrc;
+
+        if (dropdownAvatar) dropdownAvatar.src = avatarSrc;
+        if (dropdownName) dropdownName.innerHTML = `${state.currentUser.name} ${providerBadge}`;
+        if (dropdownEmail) dropdownEmail.textContent = state.currentUser.email || 'Bejelentkezve';
 
         // Titkos Admin gomb megjelenítése csak Kornélnak / Adminnak
-        const adminBtn = document.getElementById('admin-nav-btn');
         const isAdmin = state.currentUser.role === 'admin' || state.currentUser.is_admin || state.currentUser.email === 'kulovanyi.kornel@gmail.com';
         if (adminBtn) {
             if (isAdmin) {
                 adminBtn.classList.remove('hidden');
             } else {
                 adminBtn.classList.add('hidden');
+            }
+        }
+        if (dropdownAdminBtn) {
+            if (isAdmin) {
+                dropdownAdminBtn.classList.remove('hidden');
+            } else {
+                dropdownAdminBtn.classList.add('hidden');
             }
         }
 
@@ -430,6 +474,9 @@ function renderAuthUI() {
         if (loggedOutBox) loggedOutBox.classList.remove('hidden');
         const badge = document.getElementById('unread-messages-badge');
         if (badge) badge.classList.add('hidden');
+        const dropdownBadge = document.getElementById('dropdown-unread-badge');
+        if (dropdownBadge) dropdownBadge.classList.add('hidden');
+        toggleUserDropdown(false);
     }
 }
 
@@ -3074,13 +3121,19 @@ async function fetchUnreadCount() {
             const data = await res.json();
             state.unreadMessagesCount = data.unread_count || 0;
             const badge = document.getElementById('unread-messages-badge');
-            if (badge) {
-                if (state.unreadMessagesCount > 0) {
+            const dropdownBadge = document.getElementById('dropdown-unread-badge');
+            if (state.unreadMessagesCount > 0) {
+                if (badge) {
                     badge.textContent = state.unreadMessagesCount;
                     badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
                 }
+                if (dropdownBadge) {
+                    dropdownBadge.textContent = state.unreadMessagesCount;
+                    dropdownBadge.classList.remove('hidden');
+                }
+            } else {
+                if (badge) badge.classList.add('hidden');
+                if (dropdownBadge) dropdownBadge.classList.add('hidden');
             }
         }
     } catch (err) {
@@ -3819,5 +3872,6 @@ window.openChatFromItem = openChatFromItem;
 window.filterConversations = filterConversations;
 window.cancelDraftChat = cancelDraftChat;
 window.triggerAdminTestEmail = triggerAdminTestEmail;
+window.toggleUserDropdown = toggleUserDropdown;
 
 

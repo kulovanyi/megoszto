@@ -2,10 +2,35 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
-body {
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: #f8fafc;
+    max-width: 100vw;
+    width: 100%;
+    overflow-x: hidden !important;
+    position: relative;
+    margin: 0;
+    padding: 0;
 }
+
+/* Mobilon a felső sávban csak a Logó, Hirdetésfeladás gomb és Bejelentkezés/Regisztráció / Profil maradjon */
+@media (max-width: 767px) {
+    #admin-nav-btn,
+    #messages-nav-btn {
+        display: none !important;
+    }
+}
+
+@media (max-width: 639px) {
+    #current-user-name {
+        display: none !important;
+    }
+}
+
 
 /* Kártya lebegés hatások */
 .item-card {
