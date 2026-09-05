@@ -199,10 +199,10 @@
     }
 
     const PLANS = [
-        { id: 'free', name: 'Ingyenes Alap', price: 0, max_items: 1, featured_items: 0, badge: 'Kezdő', features: ['1 eszköz ingyenes meghirdetése', '0 db kiemelt hirdetés', 'Alap megjelenés a keresőben', 'Közösségi értékelések & profil'] },
-        { id: 'starter_3', name: 'Kertbarát Csomag', price: 1490, max_items: 3, featured_items: 0, badge: 'Népszerű', features: ['Akár 3 eszköz meghirdetése', '0 db kiemelt hirdetés', 'Gyorsabb bérlési kapcsolat', '0-24 online ügyféltámogatás'] },
-        { id: 'pro_10', name: 'Ezermester Csomag', price: 4490, max_items: 10, featured_items: 1, badge: 'Legjobb érték', features: ['Akár 10 eszköz meghirdetése', '⚡ 1 db hirdetés folyamatosan kiemelve', 'TOP Kiemelt lista a főoldalon', 'Részletes bérleti statisztikák'] },
-        { id: 'unlimited', name: 'Profi Kölcsönző', price: 14990, max_items: 9999, featured_items: 3, badge: 'Korlátlan', features: ['Bármennyi szerszám és gép feltöltése (Végtelen)', '⚡⚡⚡ 3 db hirdetés folyamatosan kiemelve', 'VIP arany partner jelvény a hirdetéseken', '0-24 VIP kiemelt ügyfélszolgálat'] }
+        { id: 'free', name: 'Ingyenes', price: 0, max_items: 1, featured_items: 0, badge: 'Ingyenes', features: ['1 termék feltöltés', '0 db kiemelt termék'] },
+        { id: 'starter_3', name: 'Kezdő', price: 1490, max_items: 3, featured_items: 0, badge: '1 490 Ft', features: ['3 termék feltöltés', '0 db kiemelt termék'] },
+        { id: 'pro_10', name: 'Haladó', price: 4490, max_items: 10, featured_items: 1, badge: '4 490 Ft', features: ['10 termék feltöltés', '1 db kiemelt termék'] },
+        { id: 'unlimited', name: 'Korlátlan', price: 14990, max_items: 9999, featured_items: 3, badge: '14 990 Ft', features: ['Bármennyi termék feltöltés', '3 db kiemelt termék'] }
     ];
 
     const TARGET_EMAIL = 'kulovanyi.kornel@gmail.com';

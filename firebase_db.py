@@ -30,58 +30,50 @@ BOOST_PLANS = {
 SUBSCRIPTION_PLANS = {
     "free": {
         "id": "free",
-        "name": "Ingyenes Alap",
+        "name": "Ingyenes",
         "price": 0,
         "max_items": 1,
         "featured_items": 0,
-        "badge": "Kezdő",
+        "badge": "Ingyenes",
         "features": [
-            "1 eszköz ingyenes meghirdetése",
-            "0 db kiemelt hirdetés",
-            "Alap megjelenés a keresőben",
-            "Közösségi értékelések & profil"
+            "1 termék feltöltés",
+            "0 db kiemelt termék"
         ]
     },
     "starter_3": {
         "id": "starter_3",
-        "name": "Kertbarát Csomag",
+        "name": "Kezdő",
         "price": 1490,
         "max_items": 3,
         "featured_items": 0,
-        "badge": "Népszerű",
+        "badge": "1 490 Ft",
         "features": [
-            "Akár 3 eszköz meghirdetése",
-            "0 db kiemelt hirdetés",
-            "Gyorsabb bérlési kapcsolat",
-            "0-24 online ügyféltámogatás"
+            "3 termék feltöltés",
+            "0 db kiemelt termék"
         ]
     },
     "pro_10": {
         "id": "pro_10",
-        "name": "Ezermester Csomag",
+        "name": "Haladó",
         "price": 4490,
         "max_items": 10,
         "featured_items": 1,
-        "badge": "Legjobb érték",
+        "badge": "4 490 Ft",
         "features": [
-            "Akár 10 eszköz meghirdetése",
-            "⚡ 1 db hirdetés folyamatosan kiemelve",
-            "TOP Kiemelt lista a főoldalon",
-            "Részletes bérleti statisztikák"
+            "10 termék feltöltés",
+            "1 db kiemelt termék"
         ]
     },
     "unlimited": {
         "id": "unlimited",
-        "name": "Profi Kölcsönző",
+        "name": "Korlátlan",
         "price": 14990,
         "max_items": 9999,
         "featured_items": 3,
-        "badge": "Korlátlan",
+        "badge": "14 990 Ft",
         "features": [
-            "Bármennyi szerszám és gép feltöltése (Végtelen)",
-            "⚡⚡⚡ 3 db hirdetés folyamatosan kiemelve",
-            "VIP arany partner jelvény a hirdetéseken",
-            "0-24 VIP kiemelt ügyfélszolgálat"
+            "Bármennyi termék feltöltés",
+            "3 db kiemelt termék"
         ]
     }
 }

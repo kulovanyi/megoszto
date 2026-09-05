@@ -35,59 +35,39 @@ function initClientFirebase() {
 const DEFAULT_PLANS = [
     {
         id: "free",
-        name: "Ingyenes Alap",
+        name: "Ingyenes",
         price: 0,
         max_items: 1,
         featured_items: 0,
-        badge: "Kezdő",
-        features: [
-            "1 eszköz ingyenes meghirdetése",
-            "0 db kiemelt hirdetés",
-            "Alap megjelenés a keresőben",
-            "Közösségi értékelések & profil"
-        ]
+        badge: "Ingyenes",
+        features: ["1 termék feltöltés", "0 db kiemelt termék"]
     },
     {
         id: "starter_3",
-        name: "Kertbarát Csomag",
+        name: "Kezdő",
         price: 1490,
         max_items: 3,
         featured_items: 0,
-        badge: "Népszerű",
-        features: [
-            "Akár 3 eszköz meghirdetése",
-            "0 db kiemelt hirdetés",
-            "Gyorsabb bérlési kapcsolat",
-            "0-24 online ügyféltámogatás"
-        ]
+        badge: "1 490 Ft",
+        features: ["3 termék feltöltés", "0 db kiemelt termék"]
     },
     {
         id: "pro_10",
-        name: "Ezermester Csomag",
+        name: "Haladó",
         price: 4490,
         max_items: 10,
         featured_items: 1,
-        badge: "Legjobb érték",
-        features: [
-            "Akár 10 eszköz meghirdetése",
-            "⚡ 1 db hirdetés folyamatosan kiemelve",
-            "TOP Kiemelt lista a főoldalon",
-            "Részletes bérleti statisztikák"
-        ]
+        badge: "4 490 Ft",
+        features: ["10 termék feltöltés", "1 db kiemelt termék"]
     },
     {
         id: "unlimited",
-        name: "Profi Kölcsönző",
+        name: "Korlátlan",
         price: 14990,
         max_items: 9999,
         featured_items: 3,
-        badge: "Korlátlan",
-        features: [
-            "Bármennyi szerszám és gép feltöltése (Végtelen)",
-            "⚡⚡⚡ 3 db hirdetés folyamatosan kiemelve",
-            "VIP arany partner jelvény a hirdetéseken",
-            "0-24 VIP kiemelt ügyfélszolgálat"
-        ]
+        badge: "14 990 Ft",
+        features: ["Bármennyi termék feltöltés", "3 db kiemelt termék"]
     }
 ];
 
@@ -1357,126 +1337,91 @@ function renderPlansUI() {
         const isCurrent = currentPlanId === plan.id;
         const targetRank = ranks[plan.id] || 0;
         const isDowngrade = targetRank < currentRank;
-        const isPopular = plan.id === 'starter_3';
-        const isPro = plan.id === 'pro_10';
         const isUnlimited = plan.id === 'unlimited';
 
         let borderClass = isCurrent 
-            ? 'border-2 border-emerald-500 ring-4 ring-emerald-500/10 bg-emerald-50/20' 
-            : isPopular 
-                ? 'border-2 border-amber-400 bg-amber-50/10' 
+            ? 'border-2 border-emerald-500 ring-4 ring-emerald-500/10 bg-emerald-50/10' 
+            : plan.id === 'pro_10'
+                ? 'border-2 border-blue-400 bg-white' 
                 : isUnlimited
-                    ? 'border-2 border-purple-300 bg-purple-50/10'
+                    ? 'border-2 border-purple-400 bg-white'
                     : 'border border-slate-200 bg-white';
 
-        let badgeBg = 'bg-slate-100 text-slate-700';
-        if (isUnlimited) badgeBg = 'bg-purple-100 text-purple-800';
-        else if (isPro) badgeBg = 'bg-blue-100 text-blue-800';
-        else if (isPopular) badgeBg = 'bg-amber-100 text-amber-800';
-
-        const maxItemsStr = plan.max_items >= 9000 ? '✨ Végtelen termék feltöltés' : `📦 ${plan.max_items} db termék feltöltés`;
-        const featuredStr = plan.featured_items > 0 ? `⚡ ${plan.featured_items} db termék kiemelté tétele` : `⚡ 0 db kiemelt hirdetés`;
+        const maxItemsStr = plan.max_items >= 9000 ? 'Bármennyi termék' : `${plan.max_items} termék feltöltés`;
+        const featuredStr = plan.featured_items > 0 ? `${plan.featured_items} db termék kiemelt` : `0 db kiemelt termék`;
 
         return `
-            <div class="rounded-3xl p-5 sm:p-6 flex flex-col justify-between ${borderClass} transition-all hover:shadow-lg relative h-full">
+            <div class="rounded-3xl p-5 sm:p-6 flex flex-col justify-between ${borderClass} shadow-sm hover:shadow-md transition-all relative">
                 ${isCurrent ? `
                     <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md whitespace-nowrap flex items-center gap-1">
                         <i class="fa-solid fa-circle-check"></i> Aktuális Csomagod
                     </div>
-                ` : isPopular ? `
-                    <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md whitespace-nowrap">
-                        ★ Legnépszerűbb
-                    </div>
-                ` : isUnlimited ? `
-                    <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md whitespace-nowrap">
-                        👑 VIP Korlátlan
-                    </div>
                 ` : ''}
 
-                <!-- Felső rész: Hasáb adatok egységes sorokban -->
-                <div>
-                    <!-- SOR 1: Jelvény és Csomagnév (Fix magasság az egyvonalúsághoz) -->
-                    <div class="min-h-[56px] flex flex-col justify-start mb-2">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${badgeBg}">
-                                ${plan.badge}
-                            </span>
-                        </div>
-                        <h4 class="text-lg font-black text-slate-900 leading-tight">${plan.name}</h4>
+                <!-- Hasáb blokk egységes, fix magasságú sorokkal -->
+                <div class="space-y-4">
+                    <!-- SOR 1: Csomagnév (Egyszavas) -->
+                    <div class="h-10 flex items-center justify-center">
+                        <h4 class="text-xl font-black text-slate-900 tracking-tight text-center">${plan.name}</h4>
                     </div>
 
-                    <!-- SOR 2: Ár (Fix magasság az egyvonalúsághoz) -->
-                    <div class="min-h-[64px] flex flex-col justify-center border-y border-slate-100 py-2.5 my-2">
+                    <!-- SOR 2: Ár -->
+                    <div class="h-16 flex flex-col items-center justify-center border-y border-slate-100 py-1">
                         <div class="flex items-baseline gap-1">
-                            <span class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                            <span class="text-2xl sm:text-3xl font-black text-slate-900">
                                 ${plan.price === 0 ? '0 Ft' : plan.price.toLocaleString('hu-HU') + ' Ft'}
                             </span>
                             <span class="text-xs text-slate-500 font-semibold">${plan.price === 0 ? '/ örökre' : '/ hó'}</span>
                         </div>
-                        <div class="text-[11px] ${plan.price > 0 ? 'text-emerald-700 font-bold' : 'text-slate-400 font-medium'} flex items-center gap-1 mt-0.5">
-                            ${plan.price > 0 
-                                ? '<i class="fa-solid fa-arrows-rotate text-[10px]"></i> 30 naponta megújuló díj' 
-                                : '<i class="fa-solid fa-check text-[10px]"></i> Ingyenes regisztrációval'}
-                        </div>
                     </div>
 
-                    <!-- SOR 3: Termék feltöltési limit (Fix magasság és háttér) -->
-                    <div class="h-11 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center px-3 mb-2 text-center">
-                        <span class="text-xs font-black ${plan.max_items >= 9000 ? 'text-purple-700' : 'text-slate-800'}">
+                    <!-- SOR 3: Termék feltöltési limit -->
+                    <div class="h-14 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center px-3 text-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hirdetés feltöltés</span>
+                        <span class="text-sm font-black ${plan.max_items >= 9000 ? 'text-purple-700' : 'text-slate-800'}">
                             ${maxItemsStr}
                         </span>
                     </div>
 
-                    <!-- SOR 4: Kiemelt termék kvóta (Fix magasság és háttér) -->
-                    <div class="h-11 rounded-xl ${plan.featured_items > 0 ? 'bg-amber-50/80 border border-amber-200 text-amber-900 font-black' : 'bg-slate-50/50 border border-slate-100 text-slate-400 font-semibold'} flex items-center justify-center px-3 mb-4 text-center">
-                        <span class="text-xs">
+                    <!-- SOR 4: Kiemelt termék kvóta -->
+                    <div class="h-14 rounded-2xl ${plan.featured_items > 0 ? 'bg-amber-50 border border-amber-200 text-amber-950 font-black' : 'bg-slate-50 border border-slate-100 text-slate-400 font-semibold'} flex flex-col items-center justify-center px-3 text-center">
+                        <span class="text-[10px] uppercase font-bold ${plan.featured_items > 0 ? 'text-amber-600' : 'text-slate-400'} tracking-wider">Kiemelt termék</span>
+                        <span class="text-sm font-black ${plan.featured_items > 0 ? 'text-amber-800' : 'text-slate-500'}">
                             ${featuredStr}
                         </span>
                     </div>
-
-                    <!-- SOR 5: 4 pontos tulajdonság lista (Fix minimális magasság) -->
-                    <ul class="min-h-[120px] space-y-2 text-xs text-slate-600 mb-5">
-                        ${plan.features.map(f => `
-                            <li class="flex items-start gap-2 leading-snug">
-                                <i class="fa-solid fa-check text-emerald-600 mt-0.5 text-xs shrink-0"></i>
-                                <span>${f}</span>
-                            </li>
-                        `).join('')}
-                    </ul>
                 </div>
 
-                <!-- Alsó rész: Műveleti gomb -->
-                <div class="mt-auto pt-2">
+                <!-- SOR 5: Műveleti gomb -->
+                <div class="pt-6 mt-2">
                     ${isCurrent ? `
                         <div class="space-y-1.5">
-                            <button disabled class="w-full py-3 px-4 bg-emerald-100 text-emerald-800 font-extrabold rounded-2xl text-xs cursor-default flex items-center justify-center gap-1.5 shadow-sm">
+                            <button disabled class="w-full h-11 bg-emerald-100 text-emerald-800 font-black rounded-xl text-xs cursor-default flex items-center justify-center gap-1.5">
                                 <i class="fa-solid fa-circle-check text-emerald-600"></i> Aktív Csomagod
                             </button>
                             ${remainingDays !== null && remainingDays !== undefined && plan.price > 0 ? `
                                 <p class="text-[10px] text-center text-slate-500 font-medium">
-                                    Még <strong class="text-emerald-700 font-bold">${remainingDays} napig</strong> érvényes a 30 napos ciklusból
+                                    Még <strong class="text-emerald-700 font-bold">${remainingDays} napig</strong> aktív
                                 </p>
                             ` : ''}
                         </div>
                     ` : pendingDowngrade === plan.id ? `
-                        <button disabled class="w-full py-3 px-4 bg-amber-100 text-amber-900 font-bold rounded-2xl text-xs cursor-default flex items-center justify-center gap-1">
+                        <button disabled class="w-full h-11 bg-amber-100 text-amber-900 font-bold rounded-xl text-xs cursor-default flex items-center justify-center gap-1">
                             <i class="fa-solid fa-clock text-amber-700"></i> Időzítve erre
                         </button>
                     ` : `
-                        <button onclick="selectPlan('${plan.id}')" class="w-full py-3 px-4 ${
-                            isPopular 
-                            ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20' 
-                            : isUnlimited 
-                                ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-600/20'
-                                : isDowngrade
-                                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
-                                    : 'bg-slate-900 hover:bg-slate-800 text-white'
-                        } font-black rounded-2xl text-xs transition-all active:scale-[0.98]">
+                        <button onclick="selectPlan('${plan.id}')" class="w-full h-11 ${
+                            isDowngrade
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                                : plan.price === 0
+                                    ? 'bg-slate-800 hover:bg-slate-900 text-white'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20'
+                        } font-black rounded-xl text-xs transition-all active:scale-[0.98]">
                             ${plan.price === 0 
-                                ? (isDowngrade ? 'Váltás Ingyenesre (Fordulókor)' : 'Váltás Ingyenesre') 
+                                ? (isDowngrade ? 'Váltás Ingyenesre' : 'Választom') 
                                 : isDowngrade 
-                                    ? 'Váltás erre (Fordulókor)' 
-                                    : 'Előfizetés erre (Havidíjas)'}
+                                    ? 'Váltás erre csomagra' 
+                                    : 'Előfizetés erre'}
                         </button>
                     `}
                 </div>
