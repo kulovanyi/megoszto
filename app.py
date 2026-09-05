@@ -229,7 +229,8 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Hiba a kép mentésekor: {str(e)}")
 
-    return {"url": f"/static/uploads/{filename}"}
+    saved_url = f"/static/uploads/{filename}"
+    return {"url": saved_url, "image_url": saved_url, "filename": filename}
 
 # --- AUTH ENDPOINTS (FIREBASE ALAPÚ) ---
 

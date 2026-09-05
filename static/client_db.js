@@ -183,7 +183,9 @@
     }
 
     function normalizeImgUrl(url) {
-        if (!url) return 'static/logo.png';
+        if (!url || url === 'undefined' || url === 'null') return 'static/logo.png';
+        if (url.startsWith('data:image/')) return url;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
         if (url.startsWith('/static/')) return 'static/' + url.substring(8);
         if (url.startsWith('./static/')) return 'static/' + url.substring(9);
         return url;
@@ -482,6 +484,9 @@
         // 7.B PUT ITEM
         if (itemMatch && (method === 'PUT' || method === 'PATCH')) {
             const itemId = itemMatch[1];
+            if (body.image_url) {
+                body.image_url = normalizeImgUrl(body.image_url);
+            }
             await updateFirestoreDoc('items', itemId, body);
             return makeResponse({ message: 'Hirdetés sikeresen frissítve!' });
         }
@@ -495,7 +500,20 @@
 
         // 8. UPLOAD
         if (path.includes('/api/upload')) {
-            return makeResponse({ image_url: 'static/logo.png', message: 'Kép feltöltve' });
+            let finalUrl = '';
+            const fileOrData = body.file || body.image || body.image_url || body.data;
+            if (typeof fileOrData === 'string' && (fileOrData.startsWith('data:image') || fileOrData.startsWith('http') || fileOrData.startsWith('/static/') || fileOrData.startsWith('static/'))) {
+                finalUrl = fileOrData;
+            } else if (fileOrData instanceof File || fileOrData instanceof Blob) {
+                finalUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => resolve('static/logo.png');
+                    reader.readAsDataURL(fileOrData);
+                });
+            }
+            if (!finalUrl) finalUrl = 'static/logo.png';
+            return makeResponse({ url: finalUrl, image_url: finalUrl, message: 'Kép sikeresen feltöltve' });
         }
 
         // 9. RENTALS

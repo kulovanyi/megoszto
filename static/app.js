@@ -81,6 +81,15 @@ const state = {
     dashboardSubTab: 'incoming', // 'incoming', 'outgoing'
     selectedItem: null,
     selectedImageFile: null,
+    croppedImageDataUrl: null,
+    croppedImageBlob: null,
+    originalImageSource: null,
+    cropperTarget: 'new', // 'new' | 'edit'
+    cropperInstance: null,
+    editSelectedImageFile: null,
+    editCroppedImageDataUrl: null,
+    editCroppedImageBlob: null,
+    editOriginalImageSource: null,
     messagesFolder: 'inbox', // 'inbox', 'archived'
     conversations: [],
     activeConversationId: null,
@@ -816,39 +825,227 @@ async function executeSocialLogin(provider, name, email, avatar = null, city = '
     }
 }
 
-// --- KÉPFELTÖLTÉS KEZELÉSE ---
+// --- KÉPFELTÖLTÉS ÉS KÉPBEÁLLÍTÓ / VÁGÓ (CROPPER) KEZELÉSE ---
 
-function handleImageFileSelect(e) {
-    const file = e.target.files[0];
+function handleImageFileSelect(e, target = 'new') {
+    const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    state.selectedImageFile = file;
+    if (target === 'edit') {
+        state.editSelectedImageFile = file;
+    } else {
+        state.selectedImageFile = file;
+    }
 
-    // Helyi előnézet azonnal FileReader-rel
     const reader = new FileReader();
     reader.onload = (event) => {
-        const previewImg = document.getElementById('image-preview');
-        const previewContainer = document.getElementById('image-preview-container');
-        const dropzone = document.getElementById('upload-dropzone');
-
-        if (previewImg) previewImg.src = event.target.result;
-        if (previewContainer) previewContainer.classList.remove('hidden');
-        if (dropzone) dropzone.classList.add('hidden');
+        const dataUrl = event.target.result;
+        if (target === 'edit') {
+            state.editOriginalImageSource = dataUrl;
+        } else {
+            state.originalImageSource = dataUrl;
+        }
+        openCropperModal(dataUrl, target);
     };
     reader.readAsDataURL(file);
 }
 
-function removeSelectedImage() {
-    state.selectedImageFile = null;
-    const fileInput = document.getElementById('new-item-file');
-    const previewContainer = document.getElementById('image-preview-container');
-    const dropzone = document.getElementById('upload-dropzone');
-    const previewImg = document.getElementById('image-preview');
+function openCropperModal(imageSrc, target = 'new') {
+    state.cropperTarget = target;
+    const modal = document.getElementById('image-cropper-modal');
+    const imageEl = document.getElementById('cropper-image');
+    if (!modal || !imageEl) return;
 
-    if (fileInput) fileInput.value = '';
-    if (previewImg) previewImg.src = '';
-    if (previewContainer) previewContainer.classList.add('hidden');
-    if (dropzone) dropzone.classList.remove('hidden');
+    if (state.cropperInstance) {
+        state.cropperInstance.destroy();
+        state.cropperInstance = null;
+    }
+
+    imageEl.src = imageSrc;
+    modal.style.display = 'flex';
+    document.body.classList.add('overflow-hidden');
+
+    const slider = document.getElementById('cropper-zoom-slider');
+    if (slider) slider.value = 1;
+
+    // Képarány gombok alaphelyzetbe (16:9 kiválasztva)
+    const aspectBtns = document.querySelectorAll('.cropper-aspect-btn');
+    aspectBtns.forEach(btn => {
+        if (btn.dataset.ratio === '1.777') {
+            btn.className = 'cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shadow-sm transition-all';
+        } else {
+            btn.className = 'cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all';
+        }
+    });
+
+    setTimeout(() => {
+        if (typeof Cropper === 'undefined') {
+            console.error('Cropper.js library nem töltődött be');
+            return;
+        }
+
+        try {
+            state.cropperInstance = new Cropper(imageEl, {
+                aspectRatio: 16 / 9,
+                viewMode: 1,
+                dragMode: 'move',
+                autoCropArea: 0.95,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+                preview: '#cropper-card-preview-box',
+                zoom(e) {
+                    if (slider && e.detail && e.detail.ratio) {
+                        slider.value = Math.min(3, Math.max(0.1, e.detail.ratio));
+                    }
+                }
+            });
+        } catch (cropErr) {
+            console.error('Hiba a Cropper indításakor:', cropErr);
+        }
+    }, 120);
+}
+
+function closeCropperModal() {
+    const modal = document.getElementById('image-cropper-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.classList.remove('overflow-hidden');
+    if (state.cropperInstance) {
+        state.cropperInstance.destroy();
+        state.cropperInstance = null;
+    }
+}
+
+function reopenCropper(target = 'new') {
+    const src = target === 'edit' ? state.editOriginalImageSource : state.originalImageSource;
+    if (src) {
+        openCropperModal(src, target);
+    } else {
+        const fileInput = document.getElementById(target === 'edit' ? 'edit-item-file' : 'new-item-file');
+        if (fileInput) fileInput.click();
+    }
+}
+
+function applyCroppedImage() {
+    if (!state.cropperInstance) {
+        closeCropperModal();
+        return;
+    }
+
+    const canvas = state.cropperInstance.getCroppedCanvas({
+        maxWidth: 1200,
+        maxHeight: 900,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high'
+    });
+
+    if (!canvas) {
+        showToast('Nem sikerült a kép kivágása!', 'error');
+        return;
+    }
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    
+    canvas.toBlob((blob) => {
+        const isEdit = state.cropperTarget === 'edit';
+        if (isEdit) {
+            state.editCroppedImageDataUrl = dataUrl;
+            state.editCroppedImageBlob = blob;
+            const previewImg = document.getElementById('edit-image-preview');
+            const previewContainer = document.getElementById('edit-image-preview-container');
+            const dropzone = document.getElementById('edit-upload-dropzone');
+            if (previewImg) previewImg.src = dataUrl;
+            if (previewContainer) previewContainer.classList.remove('hidden');
+            if (dropzone) dropzone.classList.add('hidden');
+        } else {
+            state.croppedImageDataUrl = dataUrl;
+            state.croppedImageBlob = blob;
+            const previewImg = document.getElementById('image-preview');
+            const previewContainer = document.getElementById('image-preview-container');
+            const dropzone = document.getElementById('upload-dropzone');
+            if (previewImg) previewImg.src = dataUrl;
+            if (previewContainer) previewContainer.classList.remove('hidden');
+            if (dropzone) dropzone.classList.add('hidden');
+        }
+        
+        closeCropperModal();
+        showToast('✨ A fotó beállítása és vágása sikeresen alkalmazva!', 'success');
+    }, 'image/jpeg', 0.88);
+}
+
+function removeSelectedImage(target = 'new') {
+    if (target === 'edit') {
+        state.editSelectedImageFile = null;
+        state.editCroppedImageDataUrl = null;
+        state.editCroppedImageBlob = null;
+        state.editOriginalImageSource = null;
+        const fileInput = document.getElementById('edit-item-file');
+        const previewContainer = document.getElementById('edit-image-preview-container');
+        const dropzone = document.getElementById('edit-upload-dropzone');
+        const previewImg = document.getElementById('edit-image-preview');
+        const hiddenUrl = document.getElementById('edit-item-image-url');
+
+        if (fileInput) fileInput.value = '';
+        if (previewImg) previewImg.src = '';
+        if (hiddenUrl) hiddenUrl.value = '';
+        if (previewContainer) previewContainer.classList.add('hidden');
+        if (dropzone) dropzone.classList.remove('hidden');
+    } else {
+        state.selectedImageFile = null;
+        state.croppedImageDataUrl = null;
+        state.croppedImageBlob = null;
+        state.originalImageSource = null;
+        const fileInput = document.getElementById('new-item-file');
+        const previewContainer = document.getElementById('image-preview-container');
+        const dropzone = document.getElementById('upload-dropzone');
+        const previewImg = document.getElementById('image-preview');
+        const hiddenUrl = document.getElementById('new-item-image-url');
+
+        if (fileInput) fileInput.value = '';
+        if (previewImg) previewImg.src = '';
+        if (hiddenUrl) hiddenUrl.value = '';
+        if (previewContainer) previewContainer.classList.add('hidden');
+        if (dropzone) dropzone.classList.remove('hidden');
+    }
+}
+
+function setCropperAspectRatio(ratio, btnEl) {
+    if (!state.cropperInstance) return;
+    state.cropperInstance.setAspectRatio(ratio);
+
+    const aspectBtns = document.querySelectorAll('.cropper-aspect-btn');
+    aspectBtns.forEach(btn => {
+        btn.className = 'cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all';
+    });
+    if (btnEl) {
+        btnEl.className = 'cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shadow-sm transition-all';
+    }
+}
+
+function cropperZoom(delta) {
+    if (!state.cropperInstance) return;
+    state.cropperInstance.zoom(delta);
+}
+
+function cropperZoomSlider(val) {
+    if (!state.cropperInstance) return;
+    state.cropperInstance.zoomTo(parseFloat(val));
+}
+
+function cropperRotate(deg) {
+    if (!state.cropperInstance) return;
+    state.cropperInstance.rotate(deg);
+}
+
+function cropperReset() {
+    if (!state.cropperInstance) return;
+    state.cropperInstance.reset();
+    const slider = document.getElementById('cropper-zoom-slider');
+    if (slider) slider.value = 1;
 }
 
 // --- API ÉS ESZKÖZÖK LEKÉRÉSE ---
@@ -1882,7 +2079,7 @@ function openNewItemModal() {
         return;
     }
 
-    removeSelectedImage();
+    removeSelectedImage('new');
     const modal = document.getElementById('new-item-modal');
     if (modal) modal.style.display = 'flex';
     document.body.classList.add('overflow-hidden');
@@ -1897,7 +2094,7 @@ function closeNewItemModal() {
     const modal = document.getElementById('new-item-modal');
     if (modal) modal.style.display = 'none';
     document.body.classList.remove('overflow-hidden');
-    removeSelectedImage();
+    removeSelectedImage('new');
 }
 
 async function submitNewItem(e) {
@@ -1915,11 +2112,12 @@ async function submitNewItem(e) {
 
     let imageUrl = '';
 
-    // 1. Ha a felhasználó tallózott be képet a gépéről, töltsük fel a szerverre
-    if (state.selectedImageFile) {
+    // 1. Kép feltöltése (levágott fotó Blob vagy kiválasztott fájl vagy Data URL)
+    const imageToSend = state.croppedImageBlob || state.selectedImageFile;
+    if (imageToSend) {
         try {
             const formData = new FormData();
-            formData.append('file', state.selectedImageFile);
+            formData.append('file', imageToSend, 'item_photo.jpg');
 
             const uploadRes = await fetch('/api/upload', {
                 method: 'POST',
@@ -1928,12 +2126,17 @@ async function submitNewItem(e) {
 
             if (uploadRes.ok) {
                 const uploadData = await uploadRes.json();
-                imageUrl = uploadData.url;
+                imageUrl = uploadData.url || uploadData.image_url || '';
             } else {
-                console.warn('Képfeltöltés sikertelen, alapértelmezett képet használunk');
+                console.warn('Szerver képfeltöltési válasz nem OK, fallback Data URL használata');
             }
         } catch (uploadErr) {
-            console.error('Képfeltöltési hiba:', uploadErr);
+            console.error('Képfeltöltési hiba a szerverre:', uploadErr);
+        }
+
+        // Ha nincs URL a szerverről, de van kliensoldali vágott Data URL, használjuk azt
+        if (!imageUrl && state.croppedImageDataUrl) {
+            imageUrl = state.croppedImageDataUrl;
         }
     }
 
@@ -1957,7 +2160,7 @@ async function submitNewItem(e) {
         deposit,
         location,
         condition,
-        image_url: imageUrl
+        image_url: imageUrl || 'static/logo.png'
     };
 
     try {
@@ -1974,7 +2177,7 @@ async function submitNewItem(e) {
 
         form.reset();
         closeNewItemModal();
-        showToast('✨ Hirdetésed a fotóval sikeresen megjelent az oldalon!', 'success');
+        showToast('✨ Hirdetésed a beállított fotóval sikeresen megjelent az oldalon!', 'success');
         await refreshCurrentUser();
         await loadItems();
         switchTab('browse');
@@ -2011,6 +2214,29 @@ async function openEditItemModal(itemId) {
         document.getElementById('edit-item-location').value = currentEditingItem.location;
         document.getElementById('edit-item-description').value = currentEditingItem.description;
 
+        // Kép betöltése és előnézete módosításkor
+        const editPreview = document.getElementById('edit-image-preview');
+        const editPreviewContainer = document.getElementById('edit-image-preview-container');
+        const editDropzone = document.getElementById('edit-upload-dropzone');
+        const editHiddenUrl = document.getElementById('edit-item-image-url');
+
+        state.editSelectedImageFile = null;
+        state.editCroppedImageDataUrl = null;
+        state.editCroppedImageBlob = null;
+        state.editOriginalImageSource = currentEditingItem.image_url || null;
+
+        if (currentEditingItem.image_url && currentEditingItem.image_url !== 'static/logo.png') {
+            if (editPreview) editPreview.src = currentEditingItem.image_url;
+            if (editHiddenUrl) editHiddenUrl.value = currentEditingItem.image_url;
+            if (editPreviewContainer) editPreviewContainer.classList.remove('hidden');
+            if (editDropzone) editDropzone.classList.add('hidden');
+        } else {
+            if (editPreview) editPreview.src = '';
+            if (editHiddenUrl) editHiddenUrl.value = '';
+            if (editPreviewContainer) editPreviewContainer.classList.add('hidden');
+            if (editDropzone) editDropzone.classList.remove('hidden');
+        }
+
         const modal = document.getElementById('edit-item-modal');
         if (modal) modal.style.display = 'flex';
         document.body.classList.add('overflow-hidden');
@@ -2027,6 +2253,7 @@ function closeEditItemModal() {
     const modal = document.getElementById('edit-item-modal');
     if (modal) modal.style.display = 'none';
     document.body.classList.remove('overflow-hidden');
+    removeSelectedImage('edit');
     currentEditingItem = null;
 }
 
@@ -2040,6 +2267,32 @@ async function submitEditItem(e) {
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mentés...`;
     }
 
+    let imageUrl = document.getElementById('edit-item-image-url') ? document.getElementById('edit-item-image-url').value : (currentEditingItem.image_url || '');
+
+    const editImageToSend = state.editCroppedImageBlob || state.editSelectedImageFile;
+    if (editImageToSend) {
+        try {
+            const formData = new FormData();
+            formData.append('file', editImageToSend, 'edit_item_photo.jpg');
+
+            const uploadRes = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (uploadRes.ok) {
+                const uploadData = await uploadRes.json();
+                imageUrl = uploadData.url || uploadData.image_url || imageUrl;
+            }
+        } catch (uploadErr) {
+            console.warn('Képfeltöltési hiba szerkesztéskor:', uploadErr);
+        }
+
+        if ((!imageUrl || imageUrl === 'static/logo.png') && state.editCroppedImageDataUrl) {
+            imageUrl = state.editCroppedImageDataUrl;
+        }
+    }
+
     const payload = {
         user_id: state.currentUser.id,
         title: document.getElementById('edit-item-title').value,
@@ -2049,7 +2302,8 @@ async function submitEditItem(e) {
         price_unit: document.getElementById('edit-item-price-unit').value,
         deposit: parseInt(document.getElementById('edit-item-deposit').value || 0),
         location: document.getElementById('edit-item-location').value,
-        description: document.getElementById('edit-item-description').value
+        description: document.getElementById('edit-item-description').value,
+        image_url: imageUrl
     };
 
     try {
@@ -3956,6 +4210,15 @@ window.logoutUser = logoutUser;
 
 window.handleImageFileSelect = handleImageFileSelect;
 window.removeSelectedImage = removeSelectedImage;
+window.openCropperModal = openCropperModal;
+window.closeCropperModal = closeCropperModal;
+window.reopenCropper = reopenCropper;
+window.applyCroppedImage = applyCroppedImage;
+window.setCropperAspectRatio = setCropperAspectRatio;
+window.cropperZoom = cropperZoom;
+window.cropperZoomSlider = cropperZoomSlider;
+window.cropperRotate = cropperRotate;
+window.cropperReset = cropperReset;
 window.openEditItemModal = openEditItemModal;
 window.closeEditItemModal = closeEditItemModal;
 window.submitEditItem = submitEditItem;
