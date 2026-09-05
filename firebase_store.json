@@ -67,6 +67,22 @@
       "title": "Kv gép",
       "featured_until": null,
       "deposit": 50000
+    },
+    "1788598419235": {
+      "created_at": "2026-09-05T08:53:39.235Z",
+      "id": 1788598419235,
+      "price": 1000,
+      "image_url": "static/logo.png",
+      "available": 1,
+      "price_unit": "nap",
+      "category": "Takarítás",
+      "description": "Lefoglalhatod a gyereket\n",
+      "condition": "Jó állapotú",
+      "location": "Balassagyarmat",
+      "user_id": 2,
+      "title": "Laptop",
+      "featured_until": null,
+      "deposit": 5000
     }
   },
   "rentals": {
@@ -79,7 +95,7 @@
       "renter_id": 2,
       "item_id": 1,
       "units_count": 2,
-      "status": "pending",
+      "status": "accepted",
       "end_date": "2026-09-22",
       "deposit": 20000
     },
@@ -92,7 +108,7 @@
       "renter_id": 2,
       "item_id": 1,
       "units_count": 2,
-      "status": "pending",
+      "status": "accepted",
       "end_date": "2026-10-12",
       "deposit": 20000
     },
@@ -105,7 +121,7 @@
       "renter_id": 2,
       "item_id": 1,
       "units_count": 2,
-      "status": "pending",
+      "status": "accepted",
       "end_date": "2026-10-22",
       "deposit": 20000
     },
@@ -144,6 +160,20 @@
       "note": "Teszt berles",
       "renter_id": 2,
       "item_id": 1788585101163,
+      "units_count": 2,
+      "status": "approved",
+      "end_date": "2026-11-22",
+      "deposit": 5000
+    },
+    "7": {
+      "created_at": "2026-09-05 10:58:51",
+      "start_date": "2026-11-20",
+      "id": 7,
+      "total_price": 6000,
+      "owner_id": 1,
+      "note": "Teszt berles",
+      "renter_id": 2,
+      "item_id": 1788598419236,
       "units_count": 2,
       "status": "approved",
       "end_date": "2026-11-22",
@@ -304,8 +334,8 @@
   },
   "meta": {
     "user_seq": 2,
-    "item_seq": 1788585101163,
-    "rental_seq": 6,
+    "item_seq": 1788598419236,
+    "rental_seq": 7,
     "review_seq": 2,
     "conv_seq": 1,
     "msg_seq": 4

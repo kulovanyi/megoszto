@@ -71,7 +71,7 @@ const state = {
     currentUser: null,
     items: [],
     plans: [...DEFAULT_PLANS],
-    categories: ['Mind', 'Kertészet', 'Barkácsolás', 'Takarítás', 'Építkezés', 'Autó & Garázs', 'Rendezvény & Hobbi'],
+    categories: ['Mind', 'Szolgáltatás', 'Műszaki eszköz', 'Ingatlan', 'Garázs', 'Kertészet', 'Barkácsolás', 'Takarítás', 'Építkezés', 'Jármű & Autó', 'Rendezvény & Hobbi', 'Egyéb'],
     selectedCategory: 'Mind',
     selectedUnit: 'Mind',
     searchQuery: '',
@@ -920,12 +920,18 @@ function renderCategoryPills() {
 
 function getCategoryIcon(cat) {
     switch(cat) {
+        case 'Szolgáltatás': return '💼';
+        case 'Műszaki eszköz': return '💻';
+        case 'Ingatlan': return '🏠';
+        case 'Garázs': return '🅿️';
         case 'Kertészet': return '🌱';
         case 'Barkácsolás': return '🔨';
         case 'Takarítás': return '✨';
         case 'Építkezés': return '🏗️';
+        case 'Jármű & Autó':
         case 'Autó & Garázs': return '🚗';
         case 'Rendezvény & Hobbi': return '🎉';
+        case 'Egyéb': return '📦';
         default: return '📦';
     }
 }
