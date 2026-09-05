@@ -145,8 +145,9 @@ def ensure_default_users(store: Dict[str, Any]) -> Dict[str, Any]:
             'avatar': 'https://lh3.googleusercontent.com/a/ACg8ocIuDqCb0ZC_qwAbIJ4Wyb2R4rSJqiW7cgQ4jXPhJvmSGUUnlFD62Q=s96-c',
             'rating': 5.0,
             'reviews_count': 0,
-            'subscription_plan': 'pro_10',
-            'max_items': 10,
+            'subscription_plan': 'unlimited',
+            'max_items': 9999,
+            'featured_items_quota': 3,
             'auth_provider': 'google',
             'role': 'admin',
             'is_admin': True,
@@ -283,14 +284,29 @@ def get_user_stats(user_id: int, items_dict: Optional[Dict[str, Any]] = None, re
     user_email = (user.get('email') or '').strip().lower()
     is_admin = user_email in ADMIN_EMAILS or user.get('role') == 'admin' or bool(user.get('is_admin'))
 
+    if is_admin:
+        return {
+            'active_items_count': active_items,
+            'completed_as_owner': completed_as_owner,
+            'completed_as_renter': completed_as_renter,
+            'role': 'admin',
+            'is_admin': True,
+            'subscription_plan': 'unlimited',
+            'max_items': 9999,
+            'featured_items_quota': 3,
+            'remaining_days': None,
+            'pending_downgrade_plan': None,
+            'pending_downgrade_at': None
+        }
+
     sub_status = check_and_update_user_subscription(user)
 
     return {
         'active_items_count': active_items,
         'completed_as_owner': completed_as_owner,
         'completed_as_renter': completed_as_renter,
-        'role': 'admin' if is_admin else user.get('role', 'user'),
-        'is_admin': is_admin,
+        'role': user.get('role', 'user'),
+        'is_admin': False,
         'remaining_days': sub_status.get('remaining_days'),
         'pending_downgrade_plan': sub_status.get('pending_downgrade_plan'),
         'pending_downgrade_at': sub_status.get('pending_downgrade_at')
@@ -307,9 +323,12 @@ def get_users() -> List[Dict[str, Any]]:
         uid = int(u_copy.get('id', 0))
         stats = get_user_stats(uid, items_dict, rentals_dict, users_dict)
         u_copy.update(stats)
-        if (u_copy.get('email') or '').strip().lower() in ADMIN_EMAILS:
+        if (u_copy.get('email') or '').strip().lower() in ADMIN_EMAILS or u_copy.get('role') == 'admin' or u_copy.get('is_admin'):
             u_copy['role'] = 'admin'
             u_copy['is_admin'] = True
+            u_copy['subscription_plan'] = 'unlimited'
+            u_copy['max_items'] = 9999
+            u_copy['featured_items_quota'] = 3
         users.append(u_copy)
     return sorted(users, key=lambda x: int(x.get('id', 0)))
 
@@ -323,6 +342,12 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
                 if 'id' not in u:
                     u['id'] = user_id
                 u.update(get_user_stats(user_id))
+                if (u.get('email') or '').strip().lower() in ADMIN_EMAILS or u.get('role') == 'admin' or u.get('is_admin'):
+                    u['role'] = 'admin'
+                    u['is_admin'] = True
+                    u['subscription_plan'] = 'unlimited'
+                    u['max_items'] = 9999
+                    u['featured_items_quota'] = 3
                 return u
         except Exception as e:
             print(f'[Firebase Warning] Error fetching user {user_id} from Firestore: {e}')
@@ -332,6 +357,12 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
     if u:
         u_copy = dict(u)
         u_copy.update(get_user_stats(user_id))
+        if (u_copy.get('email') or '').strip().lower() in ADMIN_EMAILS or u_copy.get('role') == 'admin' or u_copy.get('is_admin'):
+            u_copy['role'] = 'admin'
+            u_copy['is_admin'] = True
+            u_copy['subscription_plan'] = 'unlimited'
+            u_copy['max_items'] = 9999
+            u_copy['featured_items_quota'] = 3
         return u_copy
     return None
 
@@ -349,6 +380,12 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
                 uid = int(u.get('id', doc.id))
                 u['id'] = uid
                 u.update(get_user_stats(uid))
+                if email_clean in ADMIN_EMAILS or u.get('role') == 'admin' or u.get('is_admin'):
+                    u['role'] = 'admin'
+                    u['is_admin'] = True
+                    u['subscription_plan'] = 'unlimited'
+                    u['max_items'] = 9999
+                    u['featured_items_quota'] = 3
                 return u
         except Exception as e:
             print(f'[Firebase Warning] Error fetching user by email from Firestore: {e}')
@@ -359,7 +396,14 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
             u_copy = dict(u)
             uid = int(u_copy.get('id', 0))
             u_copy.update(get_user_stats(uid))
+            if email_clean in ADMIN_EMAILS or u_copy.get('role') == 'admin' or u_copy.get('is_admin'):
+                u_copy['role'] = 'admin'
+                u_copy['is_admin'] = True
+                u_copy['subscription_plan'] = 'unlimited'
+                u_copy['max_items'] = 9999
+                u_copy['featured_items_quota'] = 3
             return u_copy
+    return None
 
     for u in users_dict.values():
         u_name = (u.get('name') or '').strip().lower()
@@ -1338,12 +1382,20 @@ def get_admin_overview() -> Dict[str, Any]:
 
     monthly_list = sorted(list(monthly_revenue.values()), key=lambda x: x['month'], reverse=True)
 
+    # Admin felhasználók kiszűrése (nem számolódnak bele a fizető előfizetők és csomagok statisztikáiba)
+    regular_users = [
+        u for u in users 
+        if not ((u.get('email') or '').strip().lower() in ADMIN_EMAILS or u.get('role') == 'admin' or u.get('is_admin'))
+    ]
+
     plans_distribution = {
-        'free': sum(1 for u in users if u.get('subscription_plan', 'free') == 'free'),
-        'starter_3': sum(1 for u in users if u.get('subscription_plan') == 'starter_3'),
-        'pro_10': sum(1 for u in users if u.get('subscription_plan') == 'pro_10'),
-        'unlimited': sum(1 for u in users if u.get('subscription_plan') == 'unlimited')
+        'free': sum(1 for u in regular_users if u.get('subscription_plan', 'free') == 'free'),
+        'starter_3': sum(1 for u in regular_users if u.get('subscription_plan') == 'starter_3'),
+        'pro_10': sum(1 for u in regular_users if u.get('subscription_plan') == 'pro_10'),
+        'unlimited': sum(1 for u in regular_users if u.get('subscription_plan') == 'unlimited')
     }
+
+    paying_subscribers = sum(1 for u in regular_users if u.get('subscription_plan', 'free') != 'free')
 
     categories_distribution: Dict[str, int] = {}
     locations_distribution: Dict[str, int] = {}
@@ -1369,7 +1421,7 @@ def get_admin_overview() -> Dict[str, Any]:
             'total_subscription_revenue_huf': total_sub_revenue,
             'total_boost_revenue_huf': total_boost_revenue,
             'total_boosts_sold': total_boosts_sold,
-            'paying_subscribers': max(0, len(users) - plans_distribution['free'])
+            'paying_subscribers': paying_subscribers
         },
         'monthly_revenue': monthly_list,
         'plans_distribution': plans_distribution,

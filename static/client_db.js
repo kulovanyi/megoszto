@@ -17,8 +17,9 @@
                 avatar: "https://lh3.googleusercontent.com/a/ACg8ocIuDqCb0ZC_qwAbIJ4Wyb2R4rSJqiW7cgQ4jXPhJvmSGUUnlFD62Q=s96-c",
                 rating: 5.0,
                 reviews_count: 0,
-                subscription_plan: "pro_10",
-                max_items: 10,
+                subscription_plan: "unlimited",
+                max_items: 9999,
+                featured_items_quota: 3,
                 auth_provider: "google",
                 role: "admin",
                 is_admin: true,
@@ -872,6 +873,12 @@
             const txs = await getFirestoreCollection('transactions');
             const totalRevenue = Object.values(txs || {}).reduce((acc, t) => acc + (Number(t.amount_huf) || 0), 0);
 
+            // Adminok kiszűrése az előfizetői statisztikákból
+            const regularUsers = Object.values(users || {}).filter(u => {
+                const email = (u.email || '').toLowerCase();
+                return !(email === 'kulovanyi.kornel@gmail.com' || u.role === 'admin' || u.is_admin);
+            });
+
             return makeResponse({
                 stats: {
                     total_users: Object.keys(users).length,
@@ -879,7 +886,7 @@
                     total_rentals: Object.keys(rentals).length,
                     total_revenue_huf: totalRevenue,
                     monthly_mrr_huf: 0,
-                    active_subscriptions: Object.values(users).filter(u => u.subscription_plan && u.subscription_plan !== 'free').length,
+                    active_subscriptions: regularUsers.filter(u => u.subscription_plan && u.subscription_plan !== 'free').length,
                     boosted_items_count: Object.values(items).filter(i => i.featured_until && new Date(i.featured_until) > new Date()).length
                 },
                 plans: PLANS

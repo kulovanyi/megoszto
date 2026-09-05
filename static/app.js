@@ -1140,10 +1140,99 @@ function getCategoryIcon(cat) {
     }
 }
 
+function renderItemCard(item) {
+    const ownerName = item.owner_name || 'Bérbeadó';
+    const ownerFirstName = ownerName.split(' ')[0] || ownerName;
+    const ownerAvatar = item.owner_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ownerName)}`;
+    const price = Number(item.price) || 0;
+    const deposit = Number(item.deposit) || 0;
+    const priceUnit = item.price_unit || 'nap';
+    const location = item.location || 'Budapest';
+    const category = item.category || 'Egyéb';
+    const title = item.title || 'Eszköz';
+    const imgUrl = item.image_url || 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&auto=format&fit=crop&q=80';
+
+    return `
+    <div class="item-card bg-white rounded-2xl overflow-hidden ${
+        item.is_featured 
+        ? 'border-2 border-amber-400 ring-2 ring-amber-400/20 shadow-md relative bg-gradient-to-b from-amber-50/20 to-white' 
+        : 'border border-slate-200/80 shadow-sm'
+    } flex flex-col cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md" onclick="openItemModal(${item.id})">
+        <!-- 1:1 Négyzetes Kép és jelvények -->
+        <div class="relative aspect-square w-full bg-slate-100 overflow-hidden">
+            <img src="${imgUrl}" alt="${title}" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&auto=format&fit=crop&q=80'">
+            
+            <div class="absolute top-2 left-2 flex flex-wrap gap-1 z-10">
+                <div class="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-slate-700 shadow-sm">
+                    ${category}
+                </div>
+                <div class="bg-slate-900/80 backdrop-blur-md text-white px-1.5 py-0.5 rounded-md text-[9px] font-bold font-mono shadow-sm">
+                    #${item.id}
+                </div>
+            </div>
+
+            ${item.is_featured ? `
+                <div class="absolute top-2 right-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black px-2 py-0.5 rounded-md text-[9px] shadow flex items-center gap-0.5 animate-pulse">
+                    <i class="fa-solid fa-bolt text-yellow-200 text-[8px]"></i> KIEMELT
+                </div>
+            ` : ''}
+        </div>
+
+        <!-- Kompakt Tartalom -->
+        <div class="p-3 flex-1 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1">
+                    <span class="flex items-center gap-1 font-medium text-slate-600 truncate">
+                        <i class="fa-solid fa-location-dot text-emerald-600 text-[10px]"></i> ${location}
+                    </span>
+                </div>
+                
+                <h3 class="font-bold text-slate-900 text-xs sm:text-sm line-clamp-1 hover:text-emerald-600 transition-colors mb-2" title="${title}">
+                    ${title}
+                </h3>
+
+                <!-- Ár és Kaució szekció a leírás mezőben -->
+                <div class="my-1.5 p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-1">
+                    <div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Bérlés</span>
+                        <div class="flex items-baseline gap-0.5">
+                            <span class="text-xs sm:text-sm font-black text-emerald-700 leading-none">${price.toLocaleString('hu-HU')} Ft</span>
+                            <span class="text-[10px] font-bold text-slate-500">/${priceUnit}</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Kaució</span>
+                        ${deposit > 0 ? `
+                            <span class="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/60 px-1.5 py-0.2 rounded inline-block">
+                                ${deposit.toLocaleString('hu-HU')} Ft
+                            </span>
+                        ` : `
+                            <span class="text-[10px] font-semibold text-emerald-700">0 Ft</span>
+                        `}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kompakt Bérbeadó sáv -->
+            <div class="pt-2 mt-1 border-t border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <img src="${ownerAvatar}" class="w-5 h-5 rounded-full object-cover ring-1 ring-slate-200 shrink-0">
+                    <span class="text-[11px] font-medium text-slate-700 truncate">${ownerFirstName}</span>
+                </div>
+
+                <button class="px-2 py-1 ${item.is_featured ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white'} rounded-md text-[10px] font-bold transition-colors shrink-0">
+                    Bérlés <i class="fa-solid fa-arrow-right text-[8px]"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    `;
+}
+
 function renderItems() {
-    const grid = document.getElementById('items-grid');
+    const container = document.getElementById('items-grid');
     const countEl = document.getElementById('items-count');
-    if (!grid) return;
+    if (!container) return;
 
     if (!Array.isArray(state.items)) {
         state.items = [];
@@ -1154,29 +1243,29 @@ function renderItems() {
     if (state.items.length === 0) {
         const hasFilters = state.searchQuery || (state.selectedCategory && state.selectedCategory !== 'Mind') || (state.selectedUnit && state.selectedUnit !== 'Mind') || state.maxPrice || state.locationFilter;
         if (hasFilters) {
-            grid.innerHTML = `
-                <div class="col-span-full py-16 text-center">
-                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-400 mb-4">
-                        <i class="fa-solid fa-toolbox text-2xl"></i>
+            container.innerHTML = `
+                <div class="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-100 p-8">
+                    <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 text-slate-400 mb-3">
+                        <i class="fa-solid fa-toolbox text-xl"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-800 mb-1">Nincs találat a megadott feltételekre</h3>
-                    <p class="text-slate-500 text-sm mb-4">Próbáld meg módosítani a keresési kulcsszót vagy a szűrőket!</p>
-                    <button onclick="resetFilters()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-emerald-700 transition-colors">
+                    <h3 class="text-base font-bold text-slate-800 mb-1">Nincs találat a megadott feltételekre</h3>
+                    <p class="text-slate-500 text-xs mb-4">Próbáld meg módosítani a keresési kulcsszót vagy a szűrőket!</p>
+                    <button onclick="resetFilters()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow hover:bg-emerald-700 transition-colors">
                         Szűrők törlése
                     </button>
                 </div>
             `;
         } else {
-            grid.innerHTML = `
-                <div class="col-span-full py-20 text-center bg-white rounded-3xl border border-slate-200/80 p-8 shadow-sm">
-                    <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-emerald-50 text-emerald-600 mb-4 shadow-inner">
-                        <i class="fa-solid fa-hand-holding-hand text-3xl"></i>
+            container.innerHTML = `
+                <div class="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-200/80 p-8 shadow-sm">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 mb-4 shadow-inner">
+                        <i class="fa-solid fa-hand-holding-hand text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-extrabold text-slate-900 mb-2">Még nincsenek feltöltött eszközök</h3>
-                    <p class="text-slate-500 text-sm max-w-md mx-auto mb-6">
+                    <h3 class="text-lg font-extrabold text-slate-900 mb-2">Még nincsenek feltöltött eszközök</h3>
+                    <p class="text-slate-500 text-xs max-w-md mx-auto mb-6">
                         Az oldal készen áll. Légy te az első bérbeadó: add bérbe a nem használt gépeidet, szerszámaidat egyszerűen!
                     </p>
-                    <button onclick="openNewItemModal()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-emerald-600/20 transition-all inline-flex items-center gap-2">
+                    <button onclick="openNewItemModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all inline-flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> Első hirdetés feladása
                     </button>
                 </div>
@@ -1185,101 +1274,59 @@ function renderItems() {
         return;
     }
 
-    grid.innerHTML = state.items.map(item => {
-        const ownerName = item.owner_name || 'Bérbeadó';
-        const ownerFirstName = ownerName.split(' ')[0] || ownerName;
-        const ownerAvatar = item.owner_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ownerName)}`;
-        const price = Number(item.price) || 0;
-        const deposit = Number(item.deposit) || 0;
-        const priceUnit = item.price_unit || 'nap';
-        const location = item.location || 'Budapest';
-        const condition = item.condition || 'Kiváló állapotú';
-        const category = item.category || 'Egyéb';
-        const title = item.title || 'Eszköz';
-        const description = item.description || '';
-        const imgUrl = item.image_url || 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&auto=format&fit=crop&q=80';
+    const featuredItems = state.items.filter(item => item.is_featured);
+    const normalItems = state.items.filter(item => !item.is_featured);
 
-        return `
-        <div class="item-card bg-white rounded-2xl overflow-hidden ${
-            item.is_featured 
-            ? 'border-2 border-amber-400 ring-2 ring-amber-400/30 shadow-lg relative bg-gradient-to-b from-amber-50/20 to-white' 
-            : 'border border-slate-200/80 shadow-sm'
-        } flex flex-col cursor-pointer transition-all hover:-translate-y-1" onclick="openItemModal(${item.id})">
-            <!-- Kép és jelvények (1:1 Négyzetes) -->
-            <div class="relative aspect-square w-full bg-slate-100 overflow-hidden">
-                <img src="${imgUrl}" alt="${title}" class="w-full h-full object-cover transition-transform duration-300" onerror="this.src='https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&auto=format&fit=crop&q=80'">
-                
-                <div class="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
-                    <div class="bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-slate-700 shadow-sm">
-                        ${category}
-                    </div>
-                    <div class="bg-slate-900/80 backdrop-blur-md text-white px-2 py-1 rounded-full text-[10px] font-bold font-mono shadow-sm">
-                        #${item.id}
-                    </div>
-                    ${item.is_featured ? `
-                        <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black px-2.5 py-1 rounded-full text-[11px] shadow-lg flex items-center gap-1 animate-pulse">
-                            <i class="fa-solid fa-bolt text-yellow-200"></i> KIEMELT
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
+    const gridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3 sm:gap-4";
 
-            <!-- Tartalom -->
-            <div class="p-5 flex-1 flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
-                        <span class="flex items-center gap-1 font-medium text-slate-600">
-                            <i class="fa-solid fa-location-dot text-emerald-600"></i> ${location}
-                        </span>
-                        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium text-[11px]">${condition}</span>
-                    </div>
-                    <h3 class="font-bold text-slate-900 text-base line-clamp-1 hover:text-emerald-600 transition-colors mb-2">${title}</h3>
+    let html = '';
 
-                    <!-- Ár és Kaució szekció (A leírás mezőben, jól láthatóan) -->
-                    <div class="my-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">
-                        <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bérleti díj</span>
-                            <div class="flex items-baseline gap-1">
-                                <span class="text-base sm:text-lg font-black text-emerald-700 leading-none">${price.toLocaleString('hu-HU')} Ft</span>
-                                <span class="text-xs font-extrabold text-slate-500">/${priceUnit}</span>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kaució</span>
-                            ${deposit > 0 ? `
-                                <span class="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md inline-block">
-                                    ${deposit.toLocaleString('hu-HU')} Ft
-                                </span>
-                            ` : `
-                                <span class="text-[11px] font-semibold text-emerald-700">0 Ft</span>
-                            `}
-                        </div>
-                    </div>
-
-                    <p class="text-slate-600 text-xs line-clamp-2 mb-4 leading-relaxed">${description}</p>
-                </div>
-
-                <!-- Bérbeadó sáv -->
-                <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+    // 1. Kiemelt hirdetések szekció (különválasztva a többitől)
+    if (featuredItems.length > 0) {
+        html += `
+            <div class="mb-8 p-4 sm:p-5 rounded-3xl bg-amber-50/50 border-2 border-amber-300 shadow-sm">
+                <div class="flex items-center justify-between mb-4 pb-2.5 border-b border-amber-200/70">
                     <div class="flex items-center gap-2.5">
-                        <img src="${ownerAvatar}" class="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200">
+                        <span class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-sm shadow-sm shadow-amber-500/30">
+                            <i class="fa-solid fa-bolt"></i>
+                        </span>
                         <div>
-                            <p class="text-xs font-semibold text-slate-800 leading-tight">${ownerFirstName}</p>
-                            <div class="flex items-center gap-1 text-[11px] text-amber-500">
-                                <i class="fa-solid fa-star text-[10px]"></i>
-                                <span class="font-bold text-slate-700">${item.owner_rating || 5.0}</span>
-                            </div>
+                            <h3 class="text-sm sm:text-base font-black text-slate-900 tracking-tight">Kiemelt Ajánlatok</h3>
+                            <p class="text-[11px] text-amber-800/80 font-medium">Kiemelt pozícióban lévő prémium gépek és szerszámok</p>
                         </div>
                     </div>
+                    <span class="px-2.5 py-1 rounded-full bg-amber-200/90 text-amber-950 font-black text-[11px] shadow-sm">
+                        ⭐ ${featuredItems.length} db kiemelt
+                    </span>
+                </div>
 
-                    <button class="px-3 py-1.5 ${item.is_featured ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white'} rounded-lg text-xs font-bold transition-colors">
-                        Bérlés <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>
+                <div class="${gridClasses}">
+                    ${featuredItems.map(item => renderItemCard(item)).join('')}
                 </div>
             </div>
-        </div>
         `;
-    }).join('');
+    }
+
+    // 2. Normál / Minden egyéb hirdetés szekció
+    if (normalItems.length > 0) {
+        html += `
+            <div class="space-y-4">
+                ${featuredItems.length > 0 ? `
+                    <div class="flex items-center justify-between pt-2 pb-1">
+                        <h3 class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-ul text-emerald-600"></i> További Hirdetések (${normalItems.length})
+                        </h3>
+                    </div>
+                ` : ''}
+
+                <div class="${gridClasses}">
+                    ${normalItems.map(item => renderItemCard(item)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
 }
 
 // --- ELŐFIZETÉSI CSOMAGOK ---
