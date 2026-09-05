@@ -206,6 +206,8 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
     return None
 
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    if not email:
+        return None
     email_clean = email.strip().lower()
     fs = get_firestore_client()
     if fs and is_live_firebase():
@@ -219,8 +221,20 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
             print(f'[Firebase Warning] Error fetching user by email from Firestore: {e}')
 
     store = load_local_store()
+    # 1. Exact match by email
     for u in store.get('users', {}).values():
-        if u.get('email', '').strip().lower() == email_clean:
+        if (u.get('email') or '').strip().lower() == email_clean:
+            u_copy = dict(u)
+            u_copy.update(get_user_stats(u_copy['id'], store))
+            return u_copy
+
+    # 2. Flexible match by name or sub-string
+    for u in store.get('users', {}).values():
+        u_name = (u.get('name') or '').strip().lower()
+        u_email = (u.get('email') or '').strip().lower()
+        clean_no_space = email_clean.replace(' ', '').replace('.', '')
+        name_no_space = u_name.replace(' ', '').replace('.', '')
+        if clean_no_space in name_no_space or name_no_space in clean_no_space or email_clean in u_email:
             u_copy = dict(u)
             u_copy.update(get_user_stats(u_copy['id'], store))
             return u_copy
@@ -359,6 +373,23 @@ def get_item_by_id(item_id: int) -> Optional[Dict[str, Any]]:
                 rev_copy['reviewer_avatar'] = reviewer.get('avatar')
             reviews.append(rev_copy)
     item_copy['reviews'] = reviews
+
+    # Foglalt időszakok (booked ranges) összegyűjtése a naptárhoz és ütközésvizsgálathoz
+    booked_ranges = []
+    for r in store.get('rentals', {}).values():
+        if r.get('item_id') == item_id and r.get('status') in ['pending', 'approved', 'active', 'accepted']:
+            s_date = r.get('start_date')
+            e_date = r.get('end_date') or s_date
+            if s_date:
+                booked_ranges.append({
+                    'id': r.get('id'),
+                    'start_date': s_date,
+                    'end_date': e_date,
+                    'status': r.get('status'),
+                    'units_count': r.get('units_count', 1)
+                })
+    item_copy['booked_ranges'] = sorted(booked_ranges, key=lambda x: x.get('start_date', ''))
+
     return item_copy
 
 def create_item(item_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -539,6 +570,13 @@ def get_rentals(renter_id: Optional[int] = None, owner_id: Optional[int] = None)
             rental_copy['renter_phone'] = renter.get('phone')
             rental_copy['renter_email'] = renter.get('email')
 
+        # Hozzárendelt értékelések ehhez a bérléshez
+        r_id = rental.get('id')
+        rental_copy['reviews'] = [
+            dict(rev) for rev in store.get('reviews', {}).values()
+            if rev.get('rental_id') == r_id
+        ]
+
         rentals.append(rental_copy)
 
     return sorted(rentals, key=lambda x: x.get('id', 0), reverse=True)
@@ -550,8 +588,43 @@ def get_rental_by_id(rental_id: int) -> Optional[Dict[str, Any]]:
         return None
     return dict(rental)
 
+def check_rental_collision(item_id: int, start_date: str, end_date: Optional[str], store: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    req_start = str(start_date).strip()
+    req_end = str(end_date or start_date).strip()
+    if req_start > req_end:
+        req_start, req_end = req_end, req_start
+
+    for r in store.get('rentals', {}).values():
+        if r.get('item_id') == item_id and r.get('status') in ['pending', 'approved', 'active', 'accepted']:
+            ex_start = str(r.get('start_date') or '').strip()
+            ex_end = str(r.get('end_date') or ex_start).strip()
+            if not ex_start:
+                continue
+            if ex_start > ex_end:
+                ex_start, ex_end = ex_end, ex_start
+
+            # Check interval overlap
+            if req_start <= ex_end and req_end >= ex_start:
+                return {
+                    'start_date': ex_start,
+                    'end_date': ex_end,
+                    'status': r.get('status')
+                }
+    return None
+
 def create_rental(rental_data: Dict[str, Any]) -> Dict[str, Any]:
     store = load_local_store()
+
+    # Dátum ütközés vizsgálata (foglalt időpont ellenőrzés)
+    collision = check_rental_collision(
+        rental_data['item_id'],
+        rental_data['start_date'],
+        rental_data.get('end_date'),
+        store
+    )
+    if collision:
+        raise ValueError(f"Ez az eszköz a megadott időszakban ({collision['start_date']} – {collision['end_date']}) már le van foglalva! Kérlek válassz másik szabad időpontot.")
+
     new_id = store.get('meta', {}).get('rental_seq', len(store.get('rentals', {}))) + 1
     store['meta']['rental_seq'] = new_id
 
@@ -614,26 +687,81 @@ def get_reviews_for_item(item_id: int) -> List[Dict[str, Any]]:
 
 def create_review(review_data: Dict[str, Any]) -> Dict[str, Any]:
     store = load_local_store()
+
+    rental_id = review_data.get('rental_id')
+    if not rental_id:
+        raise ValueError("Értékelést csak lezárt vagy meghiúsult bérléshez lehet leadni!")
+
+    rental = store.get('rentals', {}).get(str(rental_id))
+    if not rental:
+        raise ValueError("A megadott bérlés nem található!")
+
+    item = store.get('items', {}).get(str(rental.get('item_id')))
+    if not item:
+        raise ValueError("A bérléshez tartozó eszköz nem található!")
+
+    owner_id = item.get('user_id')
+    renter_id = rental.get('renter_id')
+    reviewer_id = int(review_data.get('reviewer_id', 0))
+
+    if reviewer_id not in [owner_id, renter_id]:
+        raise ValueError("Csak a bérlésben érintett bérlő vagy bérbeadó értékelheti egymást!")
+
+    status = rental.get('status')
+    try:
+        rating = int(review_data.get('rating', 5))
+    except Exception:
+        rating = 5
+
+    # Csak 1 és 5 csillag közötti értékelés adható
+    if rating < 1 or rating > 5:
+        raise ValueError("Az értékelésnek 1 és 5 csillag között kell lennie!")
+
+    # Célfelhasználó meghatározása
+    target_user_id = renter_id if reviewer_id == owner_id else owner_id
+
+    # Ellenőrizzük, hogy ez a fél már értékelt-e ehhez a bérléshez
+    for existing in store.get('reviews', {}).values():
+        if existing.get('rental_id') == rental_id and existing.get('reviewer_id') == reviewer_id:
+            raise ValueError("Erre a bérlésre már adtál le értékelést!")
+
     new_id = store.get('meta', {}).get('review_seq', len(store.get('reviews', {}))) + 1
     store['meta']['review_seq'] = new_id
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     review = {
         'id': new_id,
-        'rental_id': review_data.get('rental_id'),
-        'item_id': review_data['item_id'],
-        'reviewer_id': review_data['reviewer_id'],
-        'rating': review_data['rating'],
-        'comment': review_data['comment'],
+        'rental_id': rental_id,
+        'item_id': rental.get('item_id'),
+        'reviewer_id': reviewer_id,
+        'target_user_id': target_user_id,
+        'rating': rating,
+        'comment': str(review_data.get('comment', '')).strip(),
+        'status_context': status,
         'created_at': now_str
     }
     store['reviews'][str(new_id)] = review
+
+    # Frissítjük a célfelhasználó értékelési átlagát
+    target_uid_str = str(target_user_id)
+    if target_uid_str in store.get('users', {}):
+        all_target_revs = [r for r in store.get('reviews', {}).values() if r.get('target_user_id') == target_user_id]
+        if all_target_revs:
+            avg_r = round(sum(r.get('rating', 5) for r in all_target_revs) / len(all_target_revs), 1)
+            store['users'][target_uid_str]['rating'] = avg_r
+            store['users'][target_uid_str]['reviews_count'] = len(all_target_revs)
+
     save_local_store(store)
 
     fs = get_firestore_client()
     if fs and is_live_firebase():
         try:
             fs.collection('reviews').document(str(new_id)).set(review)
+            if target_uid_str in store.get('users', {}):
+                fs.collection('users').document(target_uid_str).update({
+                    'rating': store['users'][target_uid_str]['rating'],
+                    'reviews_count': store['users'][target_uid_str]['reviews_count']
+                })
         except Exception as e:
             print(f'[Firebase Warning] Error saving review to Firestore: {e}')
 

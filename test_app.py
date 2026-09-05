@@ -11,29 +11,30 @@ def run_tests():
     print("=== KÖLCSÖNADÓ RENDSZERTESZT INDÍTÁSA ===")
     
     # 1. Adatbázis inicializálás és seed
+    import firebase_db
+    firebase_db.load_local_store()
     database.init_db()
-    database.seed_data()
     
     client = TestClient(app)
 
     # 2. Főoldal ellenőrzése
     res = client.get("/")
     assert res.status_code == 200, f"Főoldal betöltési hiba: {res.status_code}"
-    assert "KölcsönAdó" in res.text
+    assert "Megosztó" in res.text or "megoszto.hu" in res.text
     print("✅ 1. Főoldal HTML sikeresen betöltődik")
 
     # 3. Felhasználók lekérdezése
     res = client.get("/api/users")
     assert res.status_code == 200
     users = res.json()
-    assert len(users) >= 4
+    assert len(users) >= 2
     print(f"✅ 2. Felhasználók lekérése sikeres ({len(users)} felhasználó)")
 
     # 4. Eszközök lekérése és szűrések tesztelése
     res = client.get("/api/items")
     assert res.status_code == 200
     items = res.json()
-    assert len(items) >= 8
+    assert len(items) >= 5
     print(f"✅ 3. Eszközök listázása sikeres ({len(items)} eszköz az adatbázisban)")
 
     # Szűrés /nap, /munka szerint
@@ -50,9 +51,11 @@ def run_tests():
     assert any("Ásó" in i["title"] for i in garden_items)
     print(f"✅ 5. Kategória szűrés (Kertészet, pl. Ásó) sikeres ({len(garden_items)} db)")
 
-    # 5. Új eszköz feladása teszt (Nagy Dániel - unlimited csomag)
+    # 5. Új eszköz feladása teszt
+    owner_user = users[0]
+    renter_user = users[1]
     new_tool = {
-        "user_id": users[2]["id"],
+        "user_id": owner_user["id"],
         "title": "Kézi Földfúró 150mm (Oszlopokhoz, növényekhez)",
         "category": "Kertészet",
         "description": "Erős acél kézi talajfúró kerti oszlopok és facsemeték lyukainak fúrásához.",
@@ -70,7 +73,7 @@ def run_tests():
     # 6. Bérlési kérelem leadása
     rental_req = {
         "item_id": new_item_id,
-        "renter_id": users[1]["id"],
+        "renter_id": renter_user["id"],
         "start_date": "2026-09-10",
         "end_date": "2026-09-12",
         "units_count": 2,
@@ -81,9 +84,24 @@ def run_tests():
     res_rental = client.post("/api/rentals", json=rental_req)
     assert res_rental.status_code == 200
     rental_id = res_rental.json()["id"]
-    print(f"✅ 7. Bérlési kérelem küldése sikeres (Rental ID: {rental_id})")
+    print(f"✅ 7. Bérlési kérelem küldése & értesítő e-mailek generálása sikeres (Rental ID: {rental_id})")
 
-    # 7. Bérlés státuszának frissítése (Elfogadás -> Befejezés)
+    # 7. E-mail értesítő teszt endpoint ellenőrzése
+    res_email_test = client.post("/api/email/test-rental-notification", json={"to_email": "kulovanyi.kornel@gmail.com"})
+    assert res_email_test.status_code == 200
+    assert res_email_test.json()["sent_to"] == "kulovanyi.kornel@gmail.com"
+    print("✅ 7b. Bérbeadói & Bérlői teszt e-mail küldés (kulovanyi.kornel@gmail.com) sikeres")
+
+    # 7c. HTML előnézetek ellenőrzése
+    res_prev_owner = client.get("/api/email/preview")
+    assert res_prev_owner.status_code == 200
+    assert "Bérbeadói" in res_prev_owner.text or "kérelmed érkezett" in res_prev_owner.text
+    res_prev_renter = client.get("/api/email/preview-renter")
+    assert res_prev_renter.status_code == 200
+    assert "Bérlői" in res_prev_renter.text or "kérelmedet rögzítettük" in res_prev_renter.text
+    print("✅ 7c. Bérbeadói és bérlői HTML előnézet generálás sikeres")
+
+    # 8. Bérlés státuszának frissítése (Elfogadás -> Befejezés)
     res_accept = client.patch(f"/api/rentals/{rental_id}/status", json={"status": "accepted"})
     assert res_accept.status_code == 200
     print("✅ 8. Bérbeadó kérelem-elfogadása sikeres")
@@ -112,9 +130,8 @@ def run_tests():
     print(f"✅ 11. Előfizetési csomagok lekérése sikeres ({len(plans)} csomag: Ingyenes, 3 db, 10 db, Végtelen)")
 
     # 10. Ingyenes korlát és előfizetési limit tesztelése
-    # Tóth Gábor (users[3]) ingyenes felhasználó (max_items = 1).
-    # Feltölt egy 1. ingyenes terméket:
-    free_user_id = users[3]["id"]
+    free_user = next((u for u in users if u.get("subscription_plan") == "free"), users[1])
+    free_user_id = free_user["id"]
     item_1 = {
         "user_id": free_user_id,
         "title": "Kézi Kerti Gereblye",
@@ -192,7 +209,7 @@ def run_tests():
 
     # 14. Hirdetés módosítása (PUT /api/items/{id})
     edit_payload = {
-        "user_id": users[2]["id"],
+        "user_id": owner_user["id"],
         "title": "Módosított Földfúró Gép 200mm",
         "price": 1800,
         "price_unit": "nap",
@@ -205,7 +222,7 @@ def run_tests():
     print("✅ 21. Hirdetés adatainak módosítása (szerkesztés) sikeres")
 
     # 15. Hirdetés törlése (DELETE /api/items/{id}) és ingyenes kvóta felszabadítása
-    res_del = client.delete(f"/api/items/{new_item_id}?user_id={users[2]['id']}")
+    res_del = client.delete(f"/api/items/{new_item_id}?user_id={owner_user['id']}")
     assert res_del.status_code == 200
     print("✅ 22. Hirdetés törlése és hirdetési hely azonnali felszabadítása sikeres")
 

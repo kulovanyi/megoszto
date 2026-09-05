@@ -499,29 +499,37 @@
     <div id="review-modal" class="fixed inset-0 z-50 items-center justify-center p-4" style="display: none;">
         <div class="fixed inset-0 modal-backdrop" onclick="closeReviewModal()"></div>
         <div class="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl z-10 animate-fade-in">
-            <h3 class="text-lg font-black text-slate-900 mb-1">Bérlés értékelése</h3>
-            <p id="review-modal-title" class="text-xs text-slate-500 mb-4 font-semibold"></p>
+            <div class="flex items-center justify-between mb-1">
+                <h3 id="review-modal-heading" class="text-lg font-black text-slate-900">Partner és bérlés értékelése</h3>
+                <span id="review-modal-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">Valós Bérlés</span>
+            </div>
+            <p id="review-modal-title" class="text-xs text-slate-500 mb-3 font-semibold"></p>
+
+            <div class="mb-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-medium flex items-center gap-2">
+                <i class="fa-solid fa-shield-check text-emerald-600 text-sm shrink-0"></i>
+                <span>Csak olyan felhasználót értékelhetsz, akivel volt közös bérlésetek.</span>
+            </div>
 
             <form onsubmit="submitReview(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-2">Hány csillagot adsz az eszközre és az átvételre?</label>
-                    <div class="flex items-center justify-center gap-2 text-2xl py-2">
-                        <button type="button" onclick="setRatingStars(1)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
-                        <button type="button" onclick="setRatingStars(2)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
-                        <button type="button" onclick="setRatingStars(3)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
-                        <button type="button" onclick="setRatingStars(4)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
-                        <button type="button" onclick="setRatingStars(5)" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125">★</button>
+                    <label id="review-stars-label" class="block text-xs font-bold text-slate-700 mb-2">Hány csillagot adsz az együttműködésre?</label>
+                    <div class="flex items-center justify-center gap-2 text-2xl py-2" id="star-rating-container">
+                        <button type="button" onclick="setRatingStars(1)" id="star-btn-1" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125" title="1 csillag">★</button>
+                        <button type="button" onclick="setRatingStars(2)" id="star-btn-2" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125" title="2 csillag">★</button>
+                        <button type="button" onclick="setRatingStars(3)" id="star-btn-3" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125" title="3 csillag">★</button>
+                        <button type="button" onclick="setRatingStars(4)" id="star-btn-4" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125" title="4 csillag">★</button>
+                        <button type="button" onclick="setRatingStars(5)" id="star-btn-5" class="star-btn text-amber-400 focus:outline-none transition-transform hover:scale-125" title="5 csillag">★</button>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Vélemény / Megjegyzés:</label>
-                    <textarea id="review-comment" rows="3" required placeholder="Hogy működött az eszköz? Rendben ment az átadás-átvétel?" class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
+                    <label id="review-comment-label" class="block text-xs font-bold text-slate-700 mb-1">Vélemény / Megjegyzés:</label>
+                    <textarea id="review-comment" rows="3" required placeholder="Írd le a tapasztalataidat (kommunikáció, pontosság, eszköz állapota)..." class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeReviewModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">Mégse</button>
-                    <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow">Értékelés beküldése</button>
+                    <button type="submit" id="review-submit-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-all">Értékelés beküldése</button>
                 </div>
             </form>
         </div>
@@ -918,9 +926,9 @@
     <script src="https://js.stripe.com/v3/"></script>
 
     <!-- Megosztó Kliens Adatbázis Adapter (GitHub Pages & Offline Támogatás) -->
-    <script src="static/client_db.js?v=6"></script>
+    <script src="static/client_db.js?v=10"></script>
 
     <!-- Alkalmazás JS -->
-    <script src="static/app.js?v=6"></script>
+    <script src="static/app.js?v=10"></script>
 </body>
 </html>

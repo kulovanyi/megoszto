@@ -1,11 +1,10 @@
 @echo off
-title KolcsonAdo - Kozossegi Eszkozberles
-chcp 65001 > nul
-echo.
+title Megoszto - Kozossegi Eszkozmegoszto
+cls
 echo ========================================================
-echo       🌱 KÖLCSÖNADÓ - KÖZÖSSÉGI ESZKÖZBÉRLŐ RENDSZER
+echo       MEGOSZTO.HU - KOZOSSEGI ESZKOZMEGOSZTO
 echo ========================================================
 echo.
-echo Szerver indítása folyamatban...
+echo Szerver inditasa folyamatban...
 python run.py
 pause
