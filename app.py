@@ -48,6 +48,8 @@ class ItemUpdate(BaseModel):
     location: Optional[str] = None
     condition: Optional[str] = None
     available: Optional[int] = None
+    is_featured: Optional[int] = None
+    featured_until: Optional[str] = None
 
 class RentalCreate(BaseModel):
     item_id: int
@@ -545,7 +547,10 @@ def update_item(item_id: int, req: ItemUpdate):
     if not item:
         raise HTTPException(status_code=404, detail="Hirdetés nem található!")
 
-    if item["user_id"] != req.user_id:
+    user = firebase_db.get_user_by_id(req.user_id) if req.user_id else None
+    req_is_admin = bool(user and (user.get("role") == "admin" or user.get("is_admin") or user.get("email") in firebase_db.ADMIN_EMAILS))
+
+    if int(item.get("user_id", 0)) != int(req.user_id) and not req_is_admin:
         raise HTTPException(status_code=403, detail="Csak a saját hirdetésedet módosíthatod!")
 
     updates = {k: v for k, v in req.dict().items() if v is not None and k != "user_id"}
@@ -558,14 +563,17 @@ def delete_item(item_id: int, user_id: int = Query(...)):
     if not item:
         raise HTTPException(status_code=404, detail="Hirdetés nem található!")
 
-    if item["user_id"] != user_id:
+    user = firebase_db.get_user_by_id(user_id)
+    is_admin = bool(user and (user.get("role") == "admin" or user.get("is_admin") or user.get("email") in firebase_db.ADMIN_EMAILS))
+
+    if int(item.get("user_id", 0)) != int(user_id) and not is_admin:
         raise HTTPException(status_code=403, detail="Csak a saját hirdetésedet törölheted!")
 
     firebase_db.delete_item(item_id)
-    stats = firebase_db.get_user_stats(user_id)
+    stats = firebase_db.get_user_stats(int(item.get("user_id", user_id)))
 
     return {
-        "message": "Hirdetés sikeresen törölve! A hirdetési helyed felszabadult, újra feladhatsz ingyenesen hirdetést.",
+        "message": "Hirdetés sikeresen törölve! A hirdetési hely felszabadult.",
         "active_items_count": stats["active_items_count"]
     }
 

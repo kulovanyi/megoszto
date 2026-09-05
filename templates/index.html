@@ -64,6 +64,7 @@
                                     <div class="flex-1 min-w-0">
                                         <p id="dropdown-user-name" class="text-xs sm:text-sm font-black text-slate-900 truncate">Betöltés...</p>
                                         <p id="dropdown-user-email" class="text-[11px] text-slate-500 truncate">email@example.com</p>
+                                        <span id="dropdown-user-id-badge" class="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-extrabold border border-emerald-200">ID: #--</span>
                                     </div>
                                 </div>
                             </div>
@@ -222,19 +223,39 @@
                     <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-bold mb-1.5">
                         <i class="fa-solid fa-crown text-amber-500"></i> Tulajdonosi Adminisztrációs Panel
                     </div>
-                    <h2 class="text-2xl font-black text-slate-900">Pénzügyi & Rendszer Statisztikák</h2>
-                    <p class="text-xs text-slate-500">Havi előfizetések, bevételek és platform aktivitás valós időben</p>
+                    <h2 class="text-2xl font-black text-slate-900">Platform Adminisztráció & Kezelés</h2>
+                    <p class="text-xs text-slate-500">Minden hirdetés szerkesztése, felhasználók kezelése és pénzügyi statisztikák</p>
                 </div>
-                <button onclick="loadAdminData()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-2 self-start sm:self-auto">
-                    <i class="fa-solid fa-arrows-rotate"></i> Adatok frissítése
+                <div class="flex items-center gap-2 self-start sm:self-auto">
+                    <button onclick="loadAdminData()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-rotate"></i> Adatok frissítése
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Al-fülek -->
+            <div class="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
+                <button id="admin-tab-btn-items" onclick="switchAdminSubTab('items')" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap bg-purple-600 text-white shadow-md shadow-purple-600/20 flex items-center gap-1.5">
+                    <i class="fa-solid fa-toolbox"></i>
+                    <span>Minden Hirdetés Kezelése</span>
+                    <span id="admin-items-count-badge" class="px-1.5 py-0.2 bg-white/20 text-white text-[10px] font-black rounded-full">0</span>
+                </button>
+                <button id="admin-tab-btn-stats" onclick="switchAdminSubTab('stats')" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-line text-purple-600"></i>
+                    <span>Pénzügyi Statisztikák</span>
+                </button>
+                <button id="admin-tab-btn-users" onclick="switchAdminSubTab('users')" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-users text-purple-600"></i>
+                    <span>Felhasználók</span>
+                    <span id="admin-users-count-badge" class="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[10px] font-black rounded-full border border-slate-200">0</span>
                 </button>
             </div>
 
-            <!-- Admin tartalom (JS tölti be) -->
+            <!-- Admin tartalom (JS tölti be a kiválasztott al-fül szerint) -->
             <div id="admin-content">
                 <div class="py-12 text-center text-slate-500">
-                    <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-600 mb-2"></i>
-                    <p>Pénzügyi adatok betöltése...</p>
+                    <i class="fa-solid fa-spinner fa-spin text-2xl text-purple-600 mb-2"></i>
+                    <p>Adatok betöltése...</p>
                 </div>
             </div>
         </div>
@@ -477,23 +498,15 @@
                         <img id="cropper-image" src="" alt="Vágandó kép" class="max-w-full block" style="max-height: 420px;">
                     </div>
 
-                    <!-- Képarány választók -->
-                    <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
-                        <span class="font-bold text-slate-600 shrink-0"><i class="fa-solid fa-shapes text-emerald-600 mr-1"></i> Képarány:</span>
-                        <div class="flex flex-wrap gap-1.5" id="cropper-aspect-btns">
-                            <button type="button" onclick="setCropperAspectRatio(16/9, this)" class="cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shadow-sm transition-all" data-ratio="1.777">
-                                💳 Kártya (16:9 - Ajánlott)
-                            </button>
-                            <button type="button" onclick="setCropperAspectRatio(4/3, this)" class="cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all" data-ratio="1.333">
-                                📷 4:3
-                            </button>
-                            <button type="button" onclick="setCropperAspectRatio(1, this)" class="cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all" data-ratio="1">
-                                ⏹️ Négyzet (1:1)
-                            </button>
-                            <button type="button" onclick="setCropperAspectRatio(NaN, this)" class="cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all" data-ratio="free">
-                                📐 Szabad vágás
-                            </button>
+                    <!-- Képarány: Fix 1:1 Négyzetes mobilbarát képarány -->
+                    <div class="flex items-center justify-between p-2.5 bg-emerald-50/80 rounded-2xl border border-emerald-100 text-xs">
+                        <div class="flex items-center gap-2 text-emerald-900 font-extrabold">
+                            <i class="fa-solid fa-square text-emerald-600 text-sm"></i>
+                            <span>1:1 Négyzetes képarány (Mobilbarát formátum)</span>
                         </div>
+                        <span class="text-[11px] font-bold text-emerald-700 bg-white px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-sm">
+                            Fix 1:1 arány
+                        </span>
                     </div>
 
                     <!-- Eszköztár: Zoom, Forgatás, Reset -->
@@ -530,26 +543,36 @@
                     <div class="p-4 bg-emerald-50/70 border border-emerald-100 rounded-2xl">
                         <div class="flex items-center gap-2 mb-2">
                             <i class="fa-solid fa-eye text-emerald-700 text-sm"></i>
-                            <span class="text-xs font-black text-emerald-950 uppercase tracking-wide">Főoldali Kártya Előnézet</span>
+                            <span class="text-xs font-black text-emerald-950 uppercase tracking-wide">Főoldali Kártya Előnézet (1:1)</span>
                         </div>
                         <p class="text-[11px] text-emerald-800 leading-relaxed mb-3">
                             A látogatók és bérlők pontosan így fogják látni a terméked fotóját a keresőben:
                         </p>
 
-                        <!-- Megosztó kártya mock előnézet -->
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden pointer-events-none">
-                            <div class="relative h-36 w-full bg-slate-100 overflow-hidden flex items-center justify-center">
+                        <!-- Megosztó kártya mock előnézet (1:1 négyzet) -->
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden pointer-events-none max-w-[240px] mx-auto w-full">
+                            <div class="relative aspect-square w-full bg-slate-100 overflow-hidden flex items-center justify-center">
                                 <div id="cropper-card-preview-box" class="w-full h-full overflow-hidden relative"></div>
                                 <div class="absolute top-2 left-2 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-700 shadow-sm">
-                                    Előnézet
-                                </div>
-                                <div class="absolute top-2 right-2 bg-emerald-700 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] shadow-sm">
-                                    3 500 Ft / nap
+                                    Kertészet
                                 </div>
                             </div>
                             <div class="p-3">
-                                <h4 class="font-bold text-slate-800 text-xs truncate">A te eszközöd neve</h4>
-                                <p class="text-[11px] text-slate-400">Balassagyarmat • Kiváló állapot</p>
+                                <p class="text-[10px] text-slate-400">Balassagyarmat • Kiváló állapot</p>
+                                <h4 class="font-bold text-slate-800 text-xs truncate my-1">A te eszközöd neve</h4>
+                                <div class="my-1.5 p-2 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Bérlés</span>
+                                        <span class="text-sm font-black text-emerald-700">3 500 Ft</span>
+                                        <span class="text-[10px] font-bold text-slate-500">/nap</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Kaució</span>
+                                        <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 inline-block">
+                                            5 000 Ft
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

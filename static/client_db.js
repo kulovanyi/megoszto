@@ -371,6 +371,21 @@
             return makeResponse({ message: 'Sikeres bejelentkezés!', user: user });
         }
 
+        // 4.B ALL USERS (FOR ADMIN)
+        if (path.includes('/api/users') && method === 'GET' && !path.includes('/rentals')) {
+            const usersDict = await getFirestoreCollection('users');
+            const itemsDict = await getFirestoreCollection('items');
+            const userList = Object.values(usersDict || {}).map(u => {
+                const userItems = Object.values(itemsDict || {}).filter(it => String(it.user_id) === String(u.id));
+                return {
+                    ...u,
+                    active_items_count: userItems.length
+                };
+            });
+            userList.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+            return makeResponse(userList);
+        }
+
         // 5. ITEMS LIST
         if (path.includes('/api/items') && method === 'GET' && !path.match(/\/api\/items\/[^\/]+/)) {
             const cat = parsedUrl.searchParams.get('category');
@@ -384,13 +399,15 @@
             const usersDict = await getFirestoreCollection('users');
 
             let items = Object.values(itemsDict || {}).map(item => {
-                const owner = usersDict[String(item.user_id)] || { name: 'Bérbeadó', avatar: '', rating: 5.0, reviews_count: 0, phone: '', city: item.location || 'Budapest' };
+                const owner = usersDict[String(item.user_id)] || { id: item.user_id, name: 'Bérbeadó', email: '', avatar: '', rating: 5.0, reviews_count: 0, phone: '', city: item.location || 'Budapest' };
                 const isFeatured = item.featured_until ? new Date(item.featured_until) > new Date() : false;
                 return {
                     ...item,
                     image_url: normalizeImgUrl(item.image_url),
                     is_featured: isFeatured,
+                    owner_id: owner.id || item.user_id,
                     owner_name: owner.name || 'Bérbeadó',
+                    owner_email: owner.email || '',
                     owner_avatar: owner.avatar || '',
                     owner_rating: owner.rating || 5.0,
                     owner_reviews_count: owner.reviews_count || 0,

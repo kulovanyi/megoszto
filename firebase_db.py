@@ -356,6 +356,8 @@ def get_items(category: Optional[str] = None, price_unit: Optional[str] = None, 
 
         owner = users_dict.get(str(item.get('user_id')))
         if owner:
+            item_copy['owner_email'] = owner.get('email', '')
+            item_copy['owner_id'] = owner.get('id', item.get('user_id'))
             item_copy['owner_name'] = owner.get('name', 'Bérbeadó')
             item_copy['owner_avatar'] = owner.get('avatar', '')
             item_copy['owner_rating'] = owner.get('rating', 5.0)

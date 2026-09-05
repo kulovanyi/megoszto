@@ -104,7 +104,15 @@ const state = {
         startDate: '',
         endDate: '',
         note: ''
-    }
+    },
+    adminSubTab: 'items', // 'items', 'stats', 'users'
+    adminOverviewData: null,
+    adminAllItems: [],
+    adminAllUsers: [],
+    adminItemSearch: '',
+    adminItemCategory: 'Mind',
+    adminItemStatus: 'Mind',
+    adminUserSearch: ''
 };
 
 // --- INICIALIZÁLÁS ---
@@ -459,6 +467,11 @@ function renderAuthUI() {
         if (dropdownAvatar) dropdownAvatar.src = avatarSrc;
         if (dropdownName) dropdownName.innerHTML = `${state.currentUser.name} ${providerBadge}`;
         if (dropdownEmail) dropdownEmail.textContent = state.currentUser.email || 'Bejelentkezve';
+        
+        const dropdownIdBadge = document.getElementById('dropdown-user-id-badge');
+        if (dropdownIdBadge) {
+            dropdownIdBadge.textContent = `Azonosító (ID): #${state.currentUser.id}`;
+        }
 
         // Titkos Admin gomb megjelenítése csak Kornélnak / Adminnak a lenyíló menüben
         const isAdmin = state.currentUser.role === 'admin' || state.currentUser.is_admin || state.currentUser.email === 'kulovanyi.kornel@gmail.com';
@@ -868,16 +881,6 @@ function openCropperModal(imageSrc, target = 'new') {
     const slider = document.getElementById('cropper-zoom-slider');
     if (slider) slider.value = 1;
 
-    // Képarány gombok alaphelyzetbe (16:9 kiválasztva)
-    const aspectBtns = document.querySelectorAll('.cropper-aspect-btn');
-    aspectBtns.forEach(btn => {
-        if (btn.dataset.ratio === '1.777') {
-            btn.className = 'cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-emerald-600 text-white shadow-sm transition-all';
-        } else {
-            btn.className = 'cropper-aspect-btn px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all';
-        }
-    });
-
     setTimeout(() => {
         if (typeof Cropper === 'undefined') {
             console.error('Cropper.js library nem töltődött be');
@@ -886,7 +889,7 @@ function openCropperModal(imageSrc, target = 'new') {
 
         try {
             state.cropperInstance = new Cropper(imageEl, {
-                aspectRatio: 16 / 9,
+                aspectRatio: 1, // Fix 1:1 Négyzetes képarány
                 viewMode: 1,
                 dragMode: 'move',
                 autoCropArea: 0.95,
@@ -937,8 +940,8 @@ function applyCroppedImage() {
     }
 
     const canvas = state.cropperInstance.getCroppedCanvas({
-        maxWidth: 1200,
-        maxHeight: 900,
+        maxWidth: 1000,
+        maxHeight: 1000,
         imageSmoothingEnabled: true,
         imageSmoothingQuality: 'high'
     });
@@ -1198,43 +1201,57 @@ function renderItems() {
             ? 'border-2 border-amber-400 ring-2 ring-amber-400/30 shadow-lg relative bg-gradient-to-b from-amber-50/20 to-white' 
             : 'border border-slate-200/80 shadow-sm'
         } flex flex-col cursor-pointer transition-all hover:-translate-y-1" onclick="openItemModal(${item.id})">
-            <!-- Kép és jelvények -->
-            <div class="relative h-48 w-full bg-slate-100 overflow-hidden">
+            <!-- Kép és jelvények (1:1 Négyzetes) -->
+            <div class="relative aspect-square w-full bg-slate-100 overflow-hidden">
                 <img src="${imgUrl}" alt="${title}" class="w-full h-full object-cover transition-transform duration-300" onerror="this.src='https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=600&auto=format&fit=crop&q=80'">
                 
-                ${item.is_featured ? `
-                    <div class="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black px-3 py-1 rounded-full text-[11px] shadow-lg flex items-center gap-1.5 z-10 animate-pulse">
-                        <i class="fa-solid fa-bolt text-yellow-200"></i> KIEMELT
-                    </div>
-                    <div class="absolute top-3 right-3 bg-slate-900/90 backdrop-blur-md text-white font-bold px-3 py-1 rounded-full text-xs shadow-md">
-                        ${price.toLocaleString('hu-HU')} Ft / ${priceUnit}
-                    </div>
-                ` : `
-                    <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-semibold text-slate-700 shadow-sm">
+                <div class="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
+                    <div class="bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-slate-700 shadow-sm">
                         ${category}
                     </div>
-                    <div class="absolute top-3 right-3 bg-emerald-700 text-white font-bold px-3 py-1 rounded-full text-xs shadow-md">
-                        ${price.toLocaleString('hu-HU')} Ft / ${priceUnit}
+                    <div class="bg-slate-900/80 backdrop-blur-md text-white px-2 py-1 rounded-full text-[10px] font-bold font-mono shadow-sm">
+                        #${item.id}
                     </div>
-                `}
-
-                ${deposit > 0 ? `
-                    <div class="absolute bottom-3 right-3 bg-amber-500/90 backdrop-blur-md text-white font-medium px-2 py-0.5 rounded text-[11px] shadow-sm">
-                        Kaució: ${deposit.toLocaleString('hu-HU')} Ft
-                    </div>
-                ` : ''}
+                    ${item.is_featured ? `
+                        <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black px-2.5 py-1 rounded-full text-[11px] shadow-lg flex items-center gap-1 animate-pulse">
+                            <i class="fa-solid fa-bolt text-yellow-200"></i> KIEMELT
+                        </div>
+                    ` : ''}
+                </div>
             </div>
 
             <!-- Tartalom -->
             <div class="p-5 flex-1 flex flex-col justify-between">
                 <div>
-                    <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+                    <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
                         <span class="flex items-center gap-1 font-medium text-slate-600">
                             <i class="fa-solid fa-location-dot text-emerald-600"></i> ${location}
                         </span>
                         <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium text-[11px]">${condition}</span>
                     </div>
                     <h3 class="font-bold text-slate-900 text-base line-clamp-1 hover:text-emerald-600 transition-colors mb-2">${title}</h3>
+
+                    <!-- Ár és Kaució szekció (A leírás mezőben, jól láthatóan) -->
+                    <div class="my-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bérleti díj</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-base sm:text-lg font-black text-emerald-700 leading-none">${price.toLocaleString('hu-HU')} Ft</span>
+                                <span class="text-xs font-extrabold text-slate-500">/${priceUnit}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kaució</span>
+                            ${deposit > 0 ? `
+                                <span class="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md inline-block">
+                                    ${deposit.toLocaleString('hu-HU')} Ft
+                                </span>
+                            ` : `
+                                <span class="text-[11px] font-semibold text-emerald-700">0 Ft</span>
+                            `}
+                        </div>
+                    </div>
+
                     <p class="text-slate-600 text-xs line-clamp-2 mb-4 leading-relaxed">${description}</p>
                 </div>
 
@@ -1704,18 +1721,20 @@ function renderItemModalContent() {
     modalBody.innerHTML = `
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div class="lg:col-span-7 space-y-6">
-                <div class="relative h-72 sm:h-80 rounded-2xl overflow-hidden bg-slate-100 shadow-inner">
+                <div class="relative aspect-square max-h-[380px] w-full mx-auto rounded-2xl overflow-hidden bg-slate-100 shadow-inner">
                     <img src="${item.image_url}" alt="${item.title}" class="w-full h-full object-cover">
                     <div class="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-slate-800 shadow">
                         ${item.category}
                     </div>
-                    <div class="absolute top-4 right-4 bg-emerald-600 text-white px-3.5 py-1.5 rounded-full text-sm font-extrabold shadow-lg">
-                        ${item.price.toLocaleString('hu-HU')} Ft / ${item.price_unit}
-                    </div>
                 </div>
 
                 <div>
-                    <h2 class="text-2xl font-extrabold text-slate-900 mb-2">${item.title}</h2>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <h2 class="text-2xl font-extrabold text-slate-900">${item.title}</h2>
+                        <span class="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-800 font-mono text-xs font-bold border border-slate-200 shrink-0" title="Hirdetés egyedi azonosítója">
+                            Hirdetés ID: #${item.id}
+                        </span>
+                    </div>
                     <div class="flex flex-wrap items-center gap-3 text-sm text-slate-600 mb-4">
                         <span class="flex items-center gap-1.5 font-medium"><i class="fa-solid fa-location-dot text-emerald-600"></i> ${item.location}</span>
                         <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-300"></span>
@@ -1767,8 +1786,11 @@ function renderItemModalContent() {
                         <div class="flex items-center gap-3">
                             <img src="${item.owner_avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + item.owner_name}" class="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/30 shrink-0">
                             <div>
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-2">
                                     <h4 class="font-bold text-slate-900 text-sm">${item.owner_name}</h4>
+                                    <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono font-extrabold border border-slate-200" title="Bérbeadó azonosítója">
+                                        Bérbeadó ID: #${item.user_id}
+                                    </span>
                                     <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200 inline-flex items-center gap-1">
                                         <i class="fa-solid fa-shield-halved text-emerald-600"></i> Megbízható Partner
                                     </span>
@@ -2319,10 +2341,12 @@ async function submitEditItem(e) {
         }
 
         closeEditItemModal();
-        showToast('✨ Hirdetésed adatai sikeresen módosítva lettek!', 'success');
+        showToast('✨ Hirdetés adatai sikeresen módosítva lettek!', 'success');
         await loadItems();
         if (state.activeTab === 'dashboard') {
             await loadDashboardData();
+        } else if (state.activeTab === 'admin') {
+            await loadAdminData();
         }
     } catch (err) {
         showToast(err.message, 'error');
@@ -2356,6 +2380,8 @@ async function deleteItem(itemId) {
         await loadItems();
         if (state.activeTab === 'dashboard') {
             await loadDashboardData();
+        } else if (state.activeTab === 'admin') {
+            await loadAdminData();
         }
     } catch (err) {
         showToast(err.message, 'error');
@@ -2426,8 +2452,11 @@ function renderDashboardUI(myItems, incoming, outgoing) {
             <div class="flex items-center gap-4">
                 <img src="${state.currentUser.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + state.currentUser.name}" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-emerald-400 shadow-md">
                 <div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-xl font-black text-white tracking-tight">${state.currentUser.name}</h3>
+                        <span class="px-2 py-0.5 rounded-full bg-white/20 text-emerald-300 text-[10px] font-mono font-bold border border-white/20" title="A te egyedi felhasználói azonosítód">
+                            Felhasználó ID: #${state.currentUser.id}
+                        </span>
                         <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-bold">
                             <i class="fa-solid fa-shield-halved"></i> 100% Megbízható Partner
                         </span>
@@ -2526,13 +2555,15 @@ function renderMyItems(items) {
                     : 'border border-slate-200'
                 } overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
                     <div>
-                        <div class="relative h-48 w-full bg-slate-100 overflow-hidden">
+                        <div class="relative aspect-square w-full bg-slate-100 overflow-hidden">
                             <img src="${item.image_url}" alt="${item.title}" class="w-full h-full object-cover">
-                            <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-bold text-slate-700 shadow">
-                                ${item.category}
-                            </div>
-                            <div class="absolute top-3 right-3 bg-emerald-600 text-white text-xs font-black px-3 py-1 rounded-full shadow">
-                                ${item.price.toLocaleString('hu-HU')} Ft / ${item.price_unit}
+                            <div class="absolute top-3 left-3 flex items-center gap-1.5 z-10">
+                                <span class="bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-bold text-slate-700 shadow">
+                                    ${item.category}
+                                </span>
+                                <span class="bg-slate-900/80 backdrop-blur-sm text-white px-2 py-1 rounded-full text-[10px] font-bold font-mono shadow">
+                                    #${item.id}
+                                </span>
                             </div>
                             ${item.is_featured ? `
                                 <div class="absolute bottom-3 left-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[11px] font-black px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 animate-pulse">
@@ -2541,7 +2572,7 @@ function renderMyItems(items) {
                             ` : ''}
                         </div>
 
-                        <div class="p-4 space-y-2">
+                        <div class="p-4 space-y-2.5">
                             <div class="flex items-center justify-between text-xs text-slate-500">
                                 <span class="flex items-center gap-1 font-semibold text-slate-700">
                                     <i class="fa-solid fa-location-dot text-emerald-600"></i> ${item.location}
@@ -2550,13 +2581,29 @@ function renderMyItems(items) {
                             </div>
 
                             <h4 class="font-bold text-slate-900 text-sm line-clamp-1">${item.title}</h4>
-                            <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${item.description}</p>
-                            
-                            ${item.deposit > 0 ? `
-                                <div class="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg">
-                                    Kaució: ${item.deposit.toLocaleString('hu-HU')} Ft
+
+                            <!-- Ár és Kaució szekció -->
+                            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">
+                                <div>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bérleti díj</span>
+                                    <div class="flex items-baseline gap-1">
+                                        <span class="text-base font-black text-emerald-700 leading-none">${item.price.toLocaleString('hu-HU')} Ft</span>
+                                        <span class="text-xs font-extrabold text-slate-500">/${item.price_unit}</span>
+                                    </div>
                                 </div>
-                            ` : ''}
+                                <div class="text-right">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kaució</span>
+                                    ${item.deposit > 0 ? `
+                                        <span class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md inline-block">
+                                            ${item.deposit.toLocaleString('hu-HU')} Ft
+                                        </span>
+                                    ` : `
+                                        <span class="text-[11px] font-semibold text-emerald-700">0 Ft</span>
+                                    `}
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${item.description}</p>
                         </div>
                     </div>
 
@@ -3011,17 +3058,35 @@ async function loadAdminData() {
     const container = document.getElementById('admin-content');
     if (!container) return;
 
-    container.innerHTML = `<div class="py-12 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin text-2xl text-purple-600 mb-2"></i><p>Pénzügyi és rendszeradatok betöltése...</p></div>`;
+    container.innerHTML = `<div class="py-12 text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin text-2xl text-purple-600 mb-2"></i><p>Adminisztrációs adatok betöltése...</p></div>`;
 
     try {
-        const res = await fetch(`/api/admin/overview?user_id=${state.currentUser.id}`);
-        if (!res.ok) {
-            const err = await res.json();
+        const [overviewRes, itemsRes, usersRes] = await Promise.all([
+            fetch(`/api/admin/overview?user_id=${state.currentUser.id}`),
+            fetch('/api/items'),
+            fetch('/api/users')
+        ]);
+
+        if (!overviewRes.ok) {
+            const err = await overviewRes.json();
             throw new Error(err.detail || 'Hozzáférés megtagadva');
         }
 
-        const data = await res.json();
-        renderAdminUI(data);
+        state.adminOverviewData = await overviewRes.json();
+        const rawItems = itemsRes.ok ? await itemsRes.json() : [];
+        state.adminAllItems = Array.isArray(rawItems) ? rawItems : (rawItems.items || []);
+
+        const rawUsers = usersRes.ok ? await usersRes.json() : [];
+        state.adminAllUsers = Array.isArray(rawUsers) ? rawUsers : [];
+
+        // Frissítjük a fülek számláló jelvényeit
+        const itemsBadge = document.getElementById('admin-items-count-badge');
+        if (itemsBadge) itemsBadge.textContent = state.adminAllItems.length;
+
+        const usersBadge = document.getElementById('admin-users-count-badge');
+        if (usersBadge) usersBadge.textContent = state.adminAllUsers.length;
+
+        renderAdminSubTabContent();
     } catch (err) {
         container.innerHTML = `
             <div class="bg-rose-50 border border-rose-200 p-6 rounded-2xl text-center text-rose-700">
@@ -3033,10 +3098,569 @@ async function loadAdminData() {
     }
 }
 
-function renderAdminUI(data) {
+function switchAdminSubTab(subTab) {
+    state.adminSubTab = subTab;
+
+    const btnItems = document.getElementById('admin-tab-btn-items');
+    const btnStats = document.getElementById('admin-tab-btn-stats');
+    const btnUsers = document.getElementById('admin-tab-btn-users');
+
+    const activeClass = 'px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap bg-purple-600 text-white shadow-md shadow-purple-600/20 flex items-center gap-1.5';
+    const inactiveClass = 'px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 flex items-center gap-1.5';
+
+    if (btnItems) btnItems.className = subTab === 'items' ? activeClass : inactiveClass;
+    if (btnStats) btnStats.className = subTab === 'stats' ? activeClass : inactiveClass;
+    if (btnUsers) btnUsers.className = subTab === 'users' ? activeClass : inactiveClass;
+
+    renderAdminSubTabContent();
+}
+
+function renderAdminSubTabContent() {
     const container = document.getElementById('admin-content');
     if (!container) return;
 
+    if (state.adminSubTab === 'items') {
+        renderAdminItemsView(container);
+    } else if (state.adminSubTab === 'users') {
+        renderAdminUsersView(container);
+    } else {
+        renderAdminStatsView(container);
+    }
+}
+
+// --- 1. ADMIN: MINDEN HIRDETÉS KEZELÉSE ---
+
+function setAdminItemSearch(query) {
+    state.adminItemSearch = query || '';
+    const container = document.getElementById('admin-items-table-container');
+    const countEl = document.getElementById('admin-filtered-items-count');
+    if (container) {
+        const filtered = getFilteredAdminItems();
+        if (countEl) countEl.textContent = `${filtered.length} találat`;
+        container.innerHTML = renderAdminItemsRows(filtered);
+    }
+}
+
+function setAdminItemCategory(cat) {
+    state.adminItemCategory = cat;
+    setAdminItemSearch(state.adminItemSearch);
+}
+
+function setAdminItemStatus(status) {
+    state.adminItemStatus = status;
+    setAdminItemSearch(state.adminItemSearch);
+}
+
+function resetAdminItemFilters() {
+    state.adminItemSearch = '';
+    state.adminItemCategory = 'Mind';
+    state.adminItemStatus = 'Mind';
+
+    const sInput = document.getElementById('admin-item-search-input');
+    const cSelect = document.getElementById('admin-item-category-select');
+    const stSelect = document.getElementById('admin-item-status-select');
+
+    if (sInput) sInput.value = '';
+    if (cSelect) cSelect.value = 'Mind';
+    if (stSelect) stSelect.value = 'Mind';
+
+    setAdminItemSearch('');
+}
+
+function getFilteredAdminItems() {
+    let items = [...(state.adminAllItems || [])];
+    const q = (state.adminItemSearch || '').trim().toLowerCase();
+    const cleanQ = q.replace(/^#/, '');
+
+    if (q) {
+        items = items.filter(item => {
+            const itemIdStr = String(item.id || '');
+            const userIdStr = String(item.user_id || item.owner_id || '');
+            const title = (item.title || '').toLowerCase();
+            const desc = (item.description || '').toLowerCase();
+            const ownerName = (item.owner_name || '').toLowerCase();
+            const ownerEmail = (item.owner_email || '').toLowerCase();
+            const ownerPhone = (item.owner_phone || '').toLowerCase();
+            const location = (item.location || '').toLowerCase();
+            const category = (item.category || '').toLowerCase();
+
+            return itemIdStr === cleanQ ||
+                   userIdStr === cleanQ ||
+                   itemIdStr.includes(cleanQ) ||
+                   userIdStr.includes(cleanQ) ||
+                   title.includes(q) ||
+                   desc.includes(q) ||
+                   ownerName.includes(q) ||
+                   ownerEmail.includes(q) ||
+                   ownerPhone.includes(q) ||
+                   location.includes(q) ||
+                   category.includes(q);
+        });
+    }
+
+    if (state.adminItemCategory && state.adminItemCategory !== 'Mind') {
+        items = items.filter(item => item.category === state.adminItemCategory);
+    }
+
+    if (state.adminItemStatus && state.adminItemStatus !== 'Mind') {
+        if (state.adminItemStatus === 'featured') {
+            items = items.filter(item => item.is_featured);
+        } else if (state.adminItemStatus === 'normal') {
+            items = items.filter(item => !item.is_featured);
+        }
+    }
+
+    return items;
+}
+
+function renderAdminItemsView(container) {
+    const filtered = getFilteredAdminItems();
+
+    container.innerHTML = `
+        <div class="space-y-4">
+            <!-- Kereső és szűrősáv -->
+            <div class="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-toolbox text-purple-600"></i> Minden Hirdetés Kezelése & Szerkesztése
+                        </h3>
+                        <p class="text-xs text-slate-500">Keresd meg bármelyik felhasználó hirdetését ID, név, e-mail vagy termék alapján, és módosíts benne közvetlenül!</p>
+                    </div>
+                    <span id="admin-filtered-items-count" class="px-3 py-1 bg-purple-50 text-purple-800 text-xs font-black rounded-xl border border-purple-200">
+                        ${filtered.length} találat
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-2">
+                    <!-- Fő Kereső (ID, Felhasználó ID, Cím, Név) -->
+                    <div class="lg:col-span-6 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                        <input type="text" id="admin-item-search-input" value="${state.adminItemSearch}" oninput="setAdminItemSearch(this.value)" placeholder="Keresés: Hirdetés ID (#12), Felhasználó ID (#5), Bérbeadó név, E-mail, Termék neve..." class="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none">
+                    </div>
+
+                    <!-- Kategória szűrő -->
+                    <div class="lg:col-span-3">
+                        <select id="admin-item-category-select" onchange="setAdminItemCategory(this.value)" class="w-full py-2.5 px-3 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer">
+                            ${state.categories.map(c => `<option value="${c}" ${state.adminItemCategory === c ? 'selected' : ''}>${c === 'Mind' ? '📂 Minden Kategória' : c}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Kiemelés státusz szűrő -->
+                    <div class="lg:col-span-2">
+                        <select id="admin-item-status-select" onchange="setAdminItemStatus(this.value)" class="w-full py-2.5 px-3 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer">
+                            <option value="Mind" ${state.adminItemStatus === 'Mind' ? 'selected' : ''}>⚡ Mind (Kiemelt/Normál)</option>
+                            <option value="featured" ${state.adminItemStatus === 'featured' ? 'selected' : ''}>⚡ Csak Kiemelt</option>
+                            <option value="normal" ${state.adminItemStatus === 'normal' ? 'selected' : ''}>📦 Csak Normál</option>
+                        </select>
+                    </div>
+
+                    <!-- Szűrők törlése -->
+                    <div class="lg:col-span-1 flex items-center">
+                        <button onclick="resetAdminItemFilters()" class="w-full py-2.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1" title="Szűrők alaphelyzetbe állítása">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                            <span class="lg:hidden">Törlés</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hirdetések táblázat konténer -->
+            <div id="admin-items-table-container" class="space-y-3">
+                ${renderAdminItemsRows(filtered)}
+            </div>
+        </div>
+    `;
+}
+
+function renderAdminItemsRows(items) {
+    if (!items || items.length === 0) {
+        return `
+            <div class="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-3">
+                <div class="w-14 h-14 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-search"></i>
+                </div>
+                <h4 class="font-extrabold text-slate-800 text-base">Nem található hirdetés a megadott feltételekkel</h4>
+                <p class="text-xs text-slate-500">Próbálj meg más azonosítóra, névre vagy e-mail címre keresni!</p>
+                <button onclick="resetAdminItemFilters()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow transition-colors">
+                    Szűrők törlése
+                </button>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                            <th class="py-3 px-4">Hirdetés & ID</th>
+                            <th class="py-3 px-4">Bérbeadó (Tulajdonos)</th>
+                            <th class="py-3 px-4">Kategória & Hely</th>
+                            <th class="py-3 px-4">Bérleti Díj / Kaució</th>
+                            <th class="py-3 px-4">Kiemelés</th>
+                            <th class="py-3 px-4 text-right">Admin Műveletek</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-medium">
+                        ${items.map(item => {
+                            const imgUrl = item.image_url || 'static/logo.png';
+                            const ownerName = item.owner_name || 'Bérbeadó';
+                            const ownerEmail = item.owner_email || '';
+                            const ownerPhone = item.owner_phone || '';
+                            const price = Number(item.price) || 0;
+                            const deposit = Number(item.deposit) || 0;
+                            const priceUnit = item.price_unit || 'nap';
+                            const isFeatured = !!item.is_featured;
+
+                            return `
+                                <tr class="hover:bg-slate-50/80 transition-colors">
+                                    <!-- Hirdetés & ID -->
+                                    <td class="py-3.5 px-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
+                                                <img src="${imgUrl}" alt="${escapeHtml(item.title)}" class="w-full h-full object-cover">
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="flex items-center gap-1.5 mb-0.5">
+                                                    <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 font-mono font-black text-[11px] border border-purple-200" title="Hirdetés egyedi azonosítója">
+                                                        #${item.id}
+                                                    </span>
+                                                    ${isFeatured ? '<span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px] font-black"><i class="fa-solid fa-bolt text-amber-500"></i> Kiemelt</span>' : ''}
+                                                </div>
+                                                <h4 class="font-extrabold text-slate-900 text-xs sm:text-sm truncate max-w-[200px]" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
+                                                <p class="text-[11px] text-slate-400 line-clamp-1">${escapeHtml(item.description || '')}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <!-- Bérbeadó adatai -->
+                                    <td class="py-3.5 px-4">
+                                        <div class="space-y-0.5">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-bold text-slate-900">${escapeHtml(ownerName)}</span>
+                                                <button onclick="filterAdminItemsByUserId(${item.user_id})" class="px-1.5 py-0.2 rounded bg-slate-100 hover:bg-purple-100 text-purple-700 font-mono text-[10px] font-extrabold border border-slate-200 transition-colors" title="Szűrés ennek a felhasználónak a hirdetéseire">
+                                                    User ID: #${item.user_id}
+                                                </button>
+                                            </div>
+                                            <p class="text-[11px] text-slate-500">${escapeHtml(ownerEmail)}</p>
+                                            ${ownerPhone ? `<p class="text-[10px] text-emerald-600 font-semibold"><i class="fa-solid fa-phone text-[9px]"></i> ${escapeHtml(ownerPhone)}</p>` : ''}
+                                        </div>
+                                    </td>
+
+                                    <!-- Kategória & Hely -->
+                                    <td class="py-3.5 px-4">
+                                        <div class="space-y-0.5">
+                                            <span class="inline-block px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">
+                                                ${getCategoryIcon(item.category)} ${item.category}
+                                            </span>
+                                            <p class="text-[11px] text-slate-500 flex items-center gap-1">
+                                                <i class="fa-solid fa-location-dot text-slate-400"></i> ${escapeHtml(item.location || '')}
+                                            </p>
+                                        </div>
+                                    </td>
+
+                                    <!-- Bérleti díj & Kaució -->
+                                    <td class="py-3.5 px-4">
+                                        <div class="space-y-0.5">
+                                            <div class="font-black text-emerald-700 text-xs">
+                                                ${price.toLocaleString('hu-HU')} Ft <span class="text-[10px] text-slate-500 font-bold">/${priceUnit}</span>
+                                            </div>
+                                            <div class="text-[10px] text-amber-700 font-semibold">
+                                                Kaució: ${deposit > 0 ? deposit.toLocaleString('hu-HU') + ' Ft' : '0 Ft'}
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <!-- Kiemelés kapcsoló -->
+                                    <td class="py-3.5 px-4">
+                                        <button onclick="adminToggleBoost(${item.id})" class="px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                                            isFeatured 
+                                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300' 
+                                            : 'bg-slate-100 hover:bg-amber-50 hover:text-amber-700 text-slate-600 border border-slate-200'
+                                        }" title="${isFeatured ? 'Kiemelés kikapcsolása' : 'Kiemelés bekapcsolása (VIP lista élére)'}">
+                                            <i class="fa-solid fa-bolt ${isFeatured ? 'text-amber-600' : 'text-slate-400'}"></i>
+                                            <span>${isFeatured ? 'Kiemelve' : 'Normál'}</span>
+                                        </button>
+                                    </td>
+
+                                    <!-- Admin Műveletek -->
+                                    <td class="py-3.5 px-4 text-right">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <!-- Módosítás / Szerkesztés -->
+                                            <button onclick="openEditItemModal(${item.id})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all flex items-center gap-1" title="Hirdetés adatainak módosítása egyéni kérésre">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                                <span class="hidden sm:inline">Szerkesztés</span>
+                                            </button>
+
+                                            <!-- Megtekintés -->
+                                            <button onclick="openItemModal(${item.id})" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors" title="Adatlap megtekintése">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+
+                                            <!-- Törlés -->
+                                            <button onclick="adminDeleteItem(${item.id})" class="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-colors" title="Hirdetés törlése">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+async function adminToggleBoost(itemId) {
+    if (!state.currentUser) return;
+    const item = state.adminAllItems.find(i => Number(i.id) === Number(itemId));
+    if (!item) return;
+
+    const isCurrentlyFeatured = !!item.is_featured;
+    const newFeaturedUntil = isCurrentlyFeatured ? null : '2099-12-31 23:59:59';
+
+    try {
+        const res = await fetch(`/api/items/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: state.currentUser.id,
+                featured_until: newFeaturedUntil
+            })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Hiba a kiemelés módosításakor');
+        }
+
+        showToast(isCurrentlyFeatured ? '⚡ Kiemelés kikapcsolva!' : '⚡ Kiemelés sikeresen aktiválva a hirdetésre!', 'success');
+        await loadAdminData();
+        await loadItems();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+async function adminDeleteItem(itemId) {
+    if (!state.currentUser) return;
+    const confirmed = confirm(`Adminisztrátorként biztosan törölni szeretnéd a #${itemId} számú hirdetést? Ezzel felszabadul a felhasználó hirdetési kerete.`);
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`/api/items/${itemId}?user_id=${state.currentUser.id}`, {
+            method: 'DELETE'
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Hiba a törléskor');
+        }
+
+        const data = await res.json();
+        showToast(data.message || 'Hirdetés sikeresen törölve!', 'success');
+        await loadAdminData();
+        await loadItems();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function filterAdminItemsByUserId(userId) {
+    state.adminItemSearch = `#${userId}`;
+    switchAdminSubTab('items');
+    const input = document.getElementById('admin-item-search-input');
+    if (input) input.value = `#${userId}`;
+    setAdminItemSearch(`#${userId}`);
+}
+
+
+// --- 2. ADMIN: REGISZTRÁLT FELHASZNÁLÓK ---
+
+function setAdminUserSearch(query) {
+    state.adminUserSearch = query || '';
+    const container = document.getElementById('admin-users-table-container');
+    const countEl = document.getElementById('admin-filtered-users-count');
+    if (container) {
+        const filtered = getFilteredAdminUsers();
+        if (countEl) countEl.textContent = `${filtered.length} regisztrált felhasználó`;
+        container.innerHTML = renderAdminUsersRows(filtered);
+    }
+}
+
+function getFilteredAdminUsers() {
+    let users = [...(state.adminAllUsers || [])];
+    const q = (state.adminUserSearch || '').trim().toLowerCase();
+    const cleanQ = q.replace(/^#/, '');
+
+    if (q) {
+        users = users.filter(u => {
+            const uIdStr = String(u.id || '');
+            const name = (u.name || '').toLowerCase();
+            const email = (u.email || '').toLowerCase();
+            const phone = (u.phone || '').toLowerCase();
+            const city = (u.city || '').toLowerCase();
+            const plan = (u.subscription_plan || '').toLowerCase();
+
+            return uIdStr === cleanQ ||
+                   uIdStr.includes(cleanQ) ||
+                   name.includes(q) ||
+                   email.includes(q) ||
+                   phone.includes(q) ||
+                   city.includes(q) ||
+                   plan.includes(q);
+        });
+    }
+
+    return users;
+}
+
+function renderAdminUsersView(container) {
+    const filtered = getFilteredAdminUsers();
+
+    container.innerHTML = `
+        <div class="space-y-4">
+            <!-- Keresősáv -->
+            <div class="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-users text-purple-600"></i> Regisztrált Felhasználók Listája
+                        </h3>
+                        <p class="text-xs text-slate-500">Minden felhasználó egyedi ID azonosítója, elérhetőségei, előfizetési csomagja és hirdetései</p>
+                    </div>
+                    <span id="admin-filtered-users-count" class="px-3 py-1 bg-purple-50 text-purple-800 text-xs font-black rounded-xl border border-purple-200">
+                        ${filtered.length} regisztrált felhasználó
+                    </span>
+                </div>
+
+                <div class="relative pt-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-4.5 text-slate-400 text-sm"></i>
+                    <input type="text" id="admin-user-search-input" value="${state.adminUserSearch}" oninput="setAdminUserSearch(this.value)" placeholder="Keresés Felhasználó ID (#5), Név, E-mail, Telefonszám vagy Település alapján..." class="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none">
+                </div>
+            </div>
+
+            <!-- Felhasználók táblázat konténer -->
+            <div id="admin-users-table-container" class="space-y-3">
+                ${renderAdminUsersRows(filtered)}
+            </div>
+        </div>
+    `;
+}
+
+function renderAdminUsersRows(users) {
+    if (!users || users.length === 0) {
+        return `
+            <div class="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-3">
+                <div class="w-14 h-14 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-user-slash"></i>
+                </div>
+                <h4 class="font-extrabold text-slate-800 text-base">Nem található felhasználó</h4>
+                <p class="text-xs text-slate-500">Módosítsd a keresési feltételt!</p>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                            <th class="py-3 px-4">Felhasználó & ID</th>
+                            <th class="py-3 px-4">Elérhetőség</th>
+                            <th class="py-3 px-4">Település</th>
+                            <th class="py-3 px-4">Előfizetési Csomag</th>
+                            <th class="py-3 px-4">Hirdetések</th>
+                            <th class="py-3 px-4">Regisztrált</th>
+                            <th class="py-3 px-4 text-right">Művelet</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-medium">
+                        ${users.map(u => {
+                            const avatar = u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.name || 'User')}`;
+                            const planId = u.subscription_plan || 'free';
+                            const planName = planId === 'starter_3' ? 'Kertbarát (3)' : planId === 'pro_10' ? 'Ezermester (10)' : planId === 'unlimited' ? 'Profi (Végtelen)' : 'Ingyenes (1)';
+                            const planBadgeClass = planId === 'unlimited' ? 'bg-amber-100 text-amber-900 border-amber-200' : planId === 'pro_10' ? 'bg-blue-100 text-blue-900 border-blue-200' : planId === 'starter_3' ? 'bg-emerald-100 text-emerald-900 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200';
+                            const isAdmin = u.role === 'admin' || u.is_admin || u.email === 'kulovanyi.kornel@gmail.com';
+
+                            return `
+                                <tr class="hover:bg-slate-50/80 transition-colors">
+                                    <!-- Felhasználó & ID -->
+                                    <td class="py-3.5 px-4">
+                                        <div class="flex items-center gap-3">
+                                            <img src="${avatar}" class="w-10 h-10 rounded-full object-cover ring-2 ring-purple-500/20 shrink-0">
+                                            <div class="min-w-0">
+                                                <div class="flex items-center gap-1.5 mb-0.5">
+                                                    <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 font-mono font-black text-[11px] border border-purple-200" title="Felhasználó egyedi azonosítója">
+                                                        ID: #${u.id}
+                                                    </span>
+                                                    ${isAdmin ? '<span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px] font-black"><i class="fa-solid fa-crown text-amber-500"></i> Admin</span>' : ''}
+                                                </div>
+                                                <p class="font-extrabold text-slate-900 text-xs sm:text-sm truncate">${escapeHtml(u.name || '')}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <!-- Elérhetőség -->
+                                    <td class="py-3.5 px-4">
+                                        <div class="space-y-0.5">
+                                            <p class="text-xs text-slate-700 font-bold">${escapeHtml(u.email || '')}</p>
+                                            ${u.phone ? `<p class="text-[11px] text-emerald-600 font-semibold"><i class="fa-solid fa-phone text-[10px]"></i> ${escapeHtml(u.phone)}</p>` : '<span class="text-slate-400 text-[10px] italic">Nincs telefon megadva</span>'}
+                                        </div>
+                                    </td>
+
+                                    <!-- Település -->
+                                    <td class="py-3.5 px-4">
+                                        <span class="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                                            <i class="fa-solid fa-location-dot text-slate-400"></i> ${escapeHtml(u.city || 'Budapest')}
+                                        </span>
+                                    </td>
+
+                                    <!-- Csomag -->
+                                    <td class="py-3.5 px-4">
+                                        <span class="px-2.5 py-1 rounded-xl text-[11px] font-extrabold border ${planBadgeClass} inline-block">
+                                            ${planName}
+                                        </span>
+                                    </td>
+
+                                    <!-- Hirdetések -->
+                                    <td class="py-3.5 px-4">
+                                        <span class="text-xs font-black text-slate-900">${u.active_items_count !== undefined ? u.active_items_count : 0} db</span>
+                                        <span class="text-[10px] text-slate-400">/ ${u.max_items >= 9000 ? '∞' : (u.max_items || 1)}</span>
+                                    </td>
+
+                                    <!-- Regisztrált -->
+                                    <td class="py-3.5 px-4 text-slate-500 text-[11px]">
+                                        ${u.created_at ? u.created_at.split(' ')[0] : '-'}
+                                    </td>
+
+                                    <!-- Művelet -->
+                                    <td class="py-3.5 px-4 text-right">
+                                        <button onclick="filterAdminItemsByUserId(${u.id})" class="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl text-xs transition-colors inline-flex items-center gap-1.5 shadow-sm" title="Ugrás a hirdetésekhez és szűrés erre a felhasználóra">
+                                            <i class="fa-solid fa-toolbox"></i>
+                                            <span>Hirdetései (${u.active_items_count !== undefined ? u.active_items_count : 0})</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+
+// --- 3. ADMIN: PÉNZÜGYI & RENDSZER STATISZTIKÁK ---
+
+function renderAdminStatsView(container) {
+    const data = state.adminOverviewData || {};
     const s = data.summary || {};
     const monthly = data.monthly_revenue || [];
     const plans = data.plans_distribution || {};
@@ -4234,6 +4858,15 @@ window.openStripeCheckoutModal = openStripeCheckoutModal;
 window.closeStripeCheckoutModal = closeStripeCheckoutModal;
 window.handleStripePaymentSubmit = handleStripePaymentSubmit;
 window.loadAdminData = loadAdminData;
+window.switchAdminSubTab = switchAdminSubTab;
+window.adminToggleBoost = adminToggleBoost;
+window.adminDeleteItem = adminDeleteItem;
+window.filterAdminItemsByUserId = filterAdminItemsByUserId;
+window.setAdminItemSearch = setAdminItemSearch;
+window.setAdminItemCategory = setAdminItemCategory;
+window.setAdminItemStatus = setAdminItemStatus;
+window.resetAdminItemFilters = resetAdminItemFilters;
+window.setAdminUserSearch = setAdminUserSearch;
 window.fetchUnreadCount = fetchUnreadCount;
 window.switchMessagesFolder = switchMessagesFolder;
 window.loadMessagesData = loadMessagesData;
