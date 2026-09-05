@@ -531,11 +531,28 @@
 
             const result = [];
             Object.values(rentalsDict || {}).forEach(r => {
-                const it = itemsDict[String(r.item_id)] || { title: 'Eszköz', image_url: 'static/logo.png', location: 'Budapest' };
+                const it = itemsDict[String(r.item_id)] || { title: 'Eszköz', image_url: 'static/logo.png', location: 'Budapest', price_unit: 'nap' };
                 const renter = usersDict[String(r.renter_id)] || { name: 'Bérlő', phone: '', email: '', avatar: '' };
                 const owner = usersDict[String(r.owner_id || it.user_id)] || { name: 'Tulajdonos', phone: '', email: '', avatar: '' };
                 const rentalReviews = Object.values(reviewsDict || {}).filter(rev => String(rev.rental_id) === String(r.id));
-                const obj = { ...r, item_title: it.title, item_image: normalizeImgUrl(it.image_url), item_location: it.location, renter_name: renter.name, renter_avatar: renter.avatar, renter_phone: renter.phone, renter_email: renter.email, owner_name: owner.name, owner_avatar: owner.avatar, owner_phone: owner.phone, owner_email: owner.email, reviews: rentalReviews };
+                const obj = {
+                    ...r,
+                    item_title: it.title || 'Eszköz',
+                    item_image: normalizeImgUrl(it.image_url),
+                    item_location: it.location || 'Magyarország',
+                    item_price_unit: it.price_unit || r.item_price_unit || 'nap',
+                    total_price: Number(r.total_price) || 0,
+                    deposit: Number(r.deposit) || 0,
+                    renter_name: renter.name || 'Bérlő',
+                    renter_avatar: renter.avatar || '',
+                    renter_phone: renter.phone || '',
+                    renter_email: renter.email || '',
+                    owner_name: owner.name || 'Tulajdonos',
+                    owner_avatar: owner.avatar || '',
+                    owner_phone: owner.phone || '',
+                    owner_email: owner.email || '',
+                    reviews: rentalReviews
+                };
                 
                 const isOwner = (Number(it.user_id) === userId || Number(r.owner_id) === userId);
                 const isRenter = (Number(r.renter_id) === userId);

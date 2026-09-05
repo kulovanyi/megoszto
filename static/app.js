@@ -2330,7 +2330,7 @@ function renderMyItems(items) {
 }
 
 function renderIncomingRentals(rentals) {
-    if (rentals.length === 0) {
+    if (!rentals || rentals.length === 0) {
         return `
             <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
                 <div class="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 text-xl">
@@ -2347,18 +2347,30 @@ function renderIncomingRentals(rentals) {
 
     return `
         <div class="space-y-4">
-            ${rentals.map(r => `
+            ${rentals.map(r => {
+                const itemImg = r.item_image || 'static/logo.png';
+                const itemTitle = r.item_title || 'Eszköz';
+                const renterName = r.renter_name || 'Bérlő';
+                const renterPhone = r.renter_phone || 'n/a';
+                const startDate = r.start_date || '-';
+                const endDate = r.end_date || 'megbeszélés szerint';
+                const unitsCount = r.units_count || 1;
+                const unitText = r.item_price_unit || r.price_unit || 'nap';
+                const totalPrice = (Number(r.total_price) || 0).toLocaleString('hu-HU');
+                const depositPrice = (Number(r.deposit) || 0).toLocaleString('hu-HU');
+
+                return `
                 <div class="bg-white rounded-2xl p-5 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm hover:border-emerald-200 transition-colors">
                     <div class="flex items-center gap-4">
-                        <img src="${r.item_image}" class="w-16 h-16 rounded-xl object-cover">
+                        <img src="${itemImg}" class="w-16 h-16 rounded-xl object-cover">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
-                                <h4 class="font-extrabold text-slate-900 text-sm">${r.item_title}</h4>
+                                <h4 class="font-extrabold text-slate-900 text-sm">${itemTitle}</h4>
                                 ${getStatusBadge(r.status)}
                             </div>
                             <p class="text-xs text-slate-600">
-                                <strong>Bérlő:</strong> ${r.renter_name} (${r.renter_phone || 'n/a'}) • 
-                                <strong>Időszak:</strong> ${r.start_date} → ${r.end_date || 'megbeszélés szerint'} (${r.units_count} ${r.item_price_unit})
+                                <strong>Bérlő:</strong> ${renterName} (${renterPhone}) • 
+                                <strong>Időszak:</strong> ${startDate} → ${endDate} (${unitsCount} ${unitText})
                             </p>
                             ${r.note ? `<p class="text-xs text-slate-500 mt-1 italic bg-slate-50 p-2 rounded-lg border border-slate-100">"${r.note}"</p>` : ''}
                         </div>
@@ -2366,20 +2378,20 @@ function renderIncomingRentals(rentals) {
 
                     <div class="flex flex-col md:items-end w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
                         <div class="text-sm font-black text-slate-900 mb-2">
-                            ${r.total_price.toLocaleString('hu-HU')} Ft <span class="text-xs font-normal text-slate-500">(+ ${r.deposit.toLocaleString('hu-HU')} Ft kaució)</span>
+                            ${totalPrice} Ft <span class="text-xs font-normal text-slate-500">(+ ${depositPrice} Ft kaució)</span>
                         </div>
                         <div class="flex items-center gap-2">
                             ${getActionButtonsForOwner(r)}
                         </div>
                     </div>
                 </div>
-            `).join('')}
+            `;}).join('')}
         </div>
     `;
 }
 
 function renderOutgoingRentals(rentals) {
-    if (rentals.length === 0) {
+    if (!rentals || rentals.length === 0) {
         return `
             <div class="bg-white rounded-2xl p-12 text-center border border-slate-200">
                 <div class="w-14 h-14 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
@@ -2398,38 +2410,50 @@ function renderOutgoingRentals(rentals) {
         <div class="space-y-4">
             ${rentals.map(r => {
                 const hasReviewed = (r.reviews || []).some(rev => rev.reviewer_id === state.currentUser?.id);
+                const itemImg = r.item_image || 'static/logo.png';
+                const itemTitle = r.item_title || 'Eszköz';
+                const safeTitle = itemTitle.replace(/'/g, "\\'");
+                const ownerName = r.owner_name || 'Bérbeadó';
+                const ownerPhone = r.owner_phone || '';
+                const startDate = r.start_date || '-';
+                const endDate = r.end_date || 'rugalmas';
+                const unitsCount = r.units_count || 1;
+                const unitText = r.item_price_unit || r.price_unit || 'nap';
+                const totalPrice = (Number(r.total_price) || 0).toLocaleString('hu-HU');
+                const depositPrice = (Number(r.deposit) || 0).toLocaleString('hu-HU');
+
                 return `
                 <div class="bg-white rounded-2xl p-5 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm hover:border-emerald-200 transition-colors">
                     <div class="flex items-center gap-4">
-                        <img src="${r.item_image}" class="w-16 h-16 rounded-xl object-cover">
+                        <img src="${itemImg}" class="w-16 h-16 rounded-xl object-cover">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
-                                <h4 class="font-extrabold text-slate-900 text-sm">${r.item_title}</h4>
+                                <h4 class="font-extrabold text-slate-900 text-sm">${itemTitle}</h4>
                                 ${getStatusBadge(r.status)}
                             </div>
                             <p class="text-xs text-slate-600">
-                                <strong>Bérbeadó:</strong> ${r.owner_name} (<a href="tel:${r.owner_phone}" class="text-emerald-600 hover:underline font-semibold">${r.owner_phone}</a>)
+                                <strong>Bérbeadó:</strong> ${ownerName} ${ownerPhone ? `(<a href="tel:${ownerPhone}" class="text-emerald-600 hover:underline font-semibold">${ownerPhone}</a>)` : ''}
                             </p>
                             <p class="text-xs text-slate-500">
-                                <strong>Időszak:</strong> ${r.start_date} → ${r.end_date || 'rugalmas'} • ${r.units_count} ${r.item_price_unit || 'nap'}
+                                <strong>Időszak:</strong> ${startDate} → ${endDate} • ${unitsCount} ${unitText}
                             </p>
                         </div>
                     </div>
 
                     <div class="flex flex-col md:items-end w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
                         <div class="text-sm font-black text-slate-900 mb-2">
-                            ${r.total_price.toLocaleString('hu-HU')} Ft <span class="text-xs font-normal text-slate-500">(+ ${r.deposit.toLocaleString('hu-HU')} Ft kaució)</span>
+                            ${totalPrice} Ft <span class="text-xs font-normal text-slate-500">(+ ${depositPrice} Ft kaució)</span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 justify-end">
                             ${r.status === 'completed' ? (
                                 hasReviewed 
                                 ? `<span class="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Értékelve</span>`
-                                : `<button onclick="openReviewModal(${r.id}, ${r.item_id}, '${r.item_title.replace(/'/g, "\\'")}', 'Bérbeadó', 'completed')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5"><i class="fa-solid fa-star"></i> Bérbeadó értékelése</button>`
+                                : `<button onclick="openReviewModal(${r.id}, ${r.item_id || 0}, '${safeTitle}', 'Bérbeadó', 'completed')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5"><i class="fa-solid fa-star"></i> Bérbeadó értékelése</button>`
                             ) : ''}
                             ${(r.status === 'cancelled_no_show' || r.status === 'cancelled') ? (
                                 hasReviewed 
                                 ? `<span class="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Értékelve</span>`
-                                : `<button onclick="openReviewModal(${r.id}, ${r.item_id}, '${r.item_title.replace(/'/g, "\\'")}', 'Bérbeadó', '${r.status}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5"><i class="fa-solid fa-star"></i> Bérbeadó értékelése</button>`
+                                : `<button onclick="openReviewModal(${r.id}, ${r.item_id || 0}, '${safeTitle}', 'Bérbeadó', '${r.status}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5"><i class="fa-solid fa-star"></i> Bérbeadó értékelése</button>`
                             ) : ''}
                             ${r.status === 'accepted' ? `
                                 <button onclick="updateRentalStatus(${r.id}, 'cancelled_no_show')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors" title="Ha a bérbeadó nem jött el a megbeszélt helyszínre">
@@ -2464,12 +2488,14 @@ function getStatusBadge(status) {
         case 'cancelled':
             return `<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold text-[10px]"><i class="fa-solid fa-xmark"></i> Lemondva</span>`;
         default:
-            return `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px]">${status}</span>`;
+            return `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px]">${status || 'Ismeretlen'}</span>`;
     }
 }
 
 function getActionButtonsForOwner(rental) {
     const hasReviewed = (rental.reviews || []).some(rev => rev.reviewer_id === state.currentUser?.id);
+    const safeTitle = (rental.item_title || 'Eszköz').replace(/'/g, "\\'");
+    const itemId = rental.item_id || 0;
 
     if (rental.status === 'pending') {
         return `
@@ -2503,7 +2529,7 @@ function getActionButtonsForOwner(rental) {
             return `<span class="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Bérlő értékelve</span>`;
         }
         return `
-            <button onclick="openReviewModal(${rental.id}, ${rental.item_id}, '${rental.item_title.replace(/'/g, "\\'")}', 'Bérlő', 'completed')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5">
+            <button onclick="openReviewModal(${rental.id}, ${itemId}, '${safeTitle}', 'Bérlő', 'completed')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5">
                 <i class="fa-solid fa-star"></i> Bérlő értékelése
             </button>
         `;
@@ -2512,7 +2538,7 @@ function getActionButtonsForOwner(rental) {
             return `<span class="px-3 py-1.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Értékelés rögzítve</span>`;
         }
         return `
-            <button onclick="openReviewModal(${rental.id}, ${rental.item_id}, '${rental.item_title.replace(/'/g, "\\'")}', 'Bérlő', '${rental.status}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5">
+            <button onclick="openReviewModal(${rental.id}, ${itemId}, '${safeTitle}', 'Bérlő', '${rental.status}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5">
                 <i class="fa-solid fa-star"></i> Bérlő értékelése
             </button>
         `;
