@@ -515,10 +515,42 @@
                 const owner = usersDict[String(r.owner_id || it.user_id)] || { name: 'Tulajdonos', phone: '', email: '', avatar: '' };
                 const rentalReviews = Object.values(reviewsDict || {}).filter(rev => String(rev.rental_id) === String(r.id));
                 const obj = { ...r, item_title: it.title, item_image: normalizeImgUrl(it.image_url), item_location: it.location, renter_name: renter.name, renter_avatar: renter.avatar, renter_phone: renter.phone, renter_email: renter.email, owner_name: owner.name, owner_avatar: owner.avatar, owner_phone: owner.phone, owner_email: owner.email, reviews: rentalReviews };
-                if (it.user_id === uid || r.owner_id === uid) incoming.push(obj);
-                if (r.renter_id === uid) outgoing.push(obj);
+                if (Number(it.user_id) === uid || Number(r.owner_id) === uid) incoming.push(obj);
+                if (Number(r.renter_id) === uid) outgoing.push(obj);
             });
             return makeResponse({ incoming, outgoing });
+        }
+
+        if (path.includes('/api/rentals') && method === 'GET' && !path.match(/\/api\/rentals\/[^\/]+/)) {
+            const userId = parseInt(parsedUrl.searchParams.get('user_id') || '0');
+            const role = parsedUrl.searchParams.get('role');
+            const rentalsDict = await getFirestoreCollection('rentals');
+            const itemsDict = await getFirestoreCollection('items');
+            const usersDict = await getFirestoreCollection('users');
+            const reviewsDict = await getFirestoreCollection('reviews');
+
+            const result = [];
+            Object.values(rentalsDict || {}).forEach(r => {
+                const it = itemsDict[String(r.item_id)] || { title: 'Eszköz', image_url: 'static/logo.png', location: 'Budapest' };
+                const renter = usersDict[String(r.renter_id)] || { name: 'Bérlő', phone: '', email: '', avatar: '' };
+                const owner = usersDict[String(r.owner_id || it.user_id)] || { name: 'Tulajdonos', phone: '', email: '', avatar: '' };
+                const rentalReviews = Object.values(reviewsDict || {}).filter(rev => String(rev.rental_id) === String(r.id));
+                const obj = { ...r, item_title: it.title, item_image: normalizeImgUrl(it.image_url), item_location: it.location, renter_name: renter.name, renter_avatar: renter.avatar, renter_phone: renter.phone, renter_email: renter.email, owner_name: owner.name, owner_avatar: owner.avatar, owner_phone: owner.phone, owner_email: owner.email, reviews: rentalReviews };
+                
+                const isOwner = (Number(it.user_id) === userId || Number(r.owner_id) === userId);
+                const isRenter = (Number(r.renter_id) === userId);
+
+                if (role === 'owner') {
+                    if (isOwner) result.push(obj);
+                } else if (role === 'renter') {
+                    if (isRenter) result.push(obj);
+                } else {
+                    if (!userId || isOwner || isRenter) result.push(obj);
+                }
+            });
+
+            result.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+            return makeResponse(result);
         }
 
         if (path.includes('/api/rentals') && method === 'POST') {

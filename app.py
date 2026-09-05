@@ -591,10 +591,23 @@ def create_item(item: ItemCreate):
 # --- BÉRLÉSEK (FIREBASE) ---
 
 @app.get("/api/rentals")
-def get_rentals(user_id: int, role: str = "renter"):
+def get_rentals(user_id: Optional[int] = Query(None), role: Optional[str] = Query(None)):
+    if user_id is None:
+        return firebase_db.get_rentals()
     if role == "owner":
         return firebase_db.get_rentals(owner_id=user_id)
-    return firebase_db.get_rentals(renter_id=user_id)
+    elif role == "renter":
+        return firebase_db.get_rentals(renter_id=user_id)
+    else:
+        incoming = firebase_db.get_rentals(owner_id=user_id)
+        outgoing = firebase_db.get_rentals(renter_id=user_id)
+        seen = set()
+        res = []
+        for r in incoming + outgoing:
+            if r.get('id') not in seen:
+                seen.add(r.get('id'))
+                res.append(r)
+        return sorted(res, key=lambda x: int(x.get('id', 0)) if str(x.get('id', 0)).isdigit() else 0, reverse=True)
 
 @app.post("/api/rentals")
 def create_rental(rental: RentalCreate):

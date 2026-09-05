@@ -42,22 +42,13 @@
                 <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
                     <!-- Bejelentkezett állapot -->
                     <div id="auth-logged-in" class="relative flex items-center gap-1 sm:gap-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 p-1 sm:p-1.5 sm:pr-3 rounded-xl transition-all shadow-sm">
-                        <!-- Titkos Admin Gomb (Desktopon külön gombként is elérhető) -->
-                        <button id="admin-nav-btn" onclick="switchTab('admin')" class="hidden md:flex px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-[11px] sm:text-xs shadow-md shadow-indigo-600/20 items-center gap-1 transition-all" title="Adminisztrációs & Pénzügyi Vezérlőpult">
-                            <i class="fa-solid fa-crown text-amber-300 text-xs"></i>
-                            <span>Admin</span>
-                        </button>
-
-                        <!-- Belső Üzenetek gomb (Desktopon külön gombként is elérhető) -->
-                        <button id="messages-nav-btn" onclick="switchTab('messages')" class="hidden md:flex relative px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-extrabold text-[11px] sm:text-xs transition-all items-center gap-1.5" title="Belső Üzenetek & Beszélgetések">
-                            <i class="fa-solid fa-comments text-emerald-600 text-xs sm:text-sm"></i>
-                            <span>Üzenetek</span>
-                            <span id="unread-messages-badge" class="hidden px-1.5 py-0.2 bg-rose-500 text-white font-black text-[10px] rounded-full">0</span>
-                        </button>
-
                         <!-- Profil fül / Lenyíló menü megnyitó -->
-                        <div id="user-menu-trigger" onclick="toggleUserDropdown()" class="flex items-center gap-1.5 sm:gap-2 cursor-pointer px-1 py-0.5 rounded-xl hover:opacity-90 select-none" title="Felhasználói menü és Irányítópult">
-                            <img id="current-user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80" class="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0">
+                        <div id="user-menu-trigger" onclick="toggleUserDropdown()" class="relative flex items-center gap-1.5 sm:gap-2 cursor-pointer px-1 py-0.5 rounded-xl hover:opacity-90 select-none" title="Felhasználói menü és Irányítópult">
+                            <div class="relative flex items-center">
+                                <img id="current-user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80" class="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-emerald-500/40 shrink-0">
+                                <!-- Piros értesítési pötty (üzenet vagy új bérlési kérelem esetén) -->
+                                <span id="user-menu-notification-dot" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 ring-2 ring-white rounded-full animate-pulse shadow-sm"></span>
+                            </div>
                             <span id="current-user-name" class="hidden sm:inline text-xs font-black text-slate-900 leading-tight max-w-[120px] truncate">Betöltés...</span>
                             <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-200 ml-0.5" id="user-menu-chevron"></i>
                         </div>
@@ -77,14 +68,19 @@
 
                             <!-- Menüpontok -->
                             <div class="py-1.5">
-                                <button onclick="switchTab('dashboard'); toggleUserDropdown(false);" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors">
-                                    <i class="fa-solid fa-gauge-high text-emerald-600 text-sm w-5 text-center"></i>
-                                    <span>Irányítópult & Bérléseim</span>
+                                <button onclick="switchTab('dashboard'); toggleUserDropdown(false);" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-between transition-colors">
+                                    <div class="flex items-center gap-2.5">
+                                        <i class="fa-solid fa-gauge-high text-emerald-600 text-sm w-5 text-center"></i>
+                                        <span>Irányítópult & Bérléseim</span>
+                                    </div>
+                                    <span id="dropdown-rentals-badge" class="hidden px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full animate-pulse">0 új</span>
                                 </button>
-                                <button onclick="switchTab('messages'); toggleUserDropdown(false);" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors">
-                                    <i class="fa-solid fa-comments text-emerald-600 text-sm w-5 text-center"></i>
-                                    <span>Belső Üzenetek</span>
-                                    <span id="dropdown-unread-badge" class="ml-auto hidden px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full">0</span>
+                                <button onclick="switchTab('messages'); toggleUserDropdown(false);" class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center justify-between transition-colors">
+                                    <div class="flex items-center gap-2.5">
+                                        <i class="fa-solid fa-comments text-emerald-600 text-sm w-5 text-center"></i>
+                                        <span>Belső Üzenetek</span>
+                                    </div>
+                                    <span id="dropdown-unread-badge" class="hidden px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full animate-pulse">0</span>
                                 </button>
                                 <button id="dropdown-admin-btn" onclick="switchTab('admin'); toggleUserDropdown(false);" class="hidden w-full text-left px-4 py-2.5 text-xs font-bold text-purple-700 bg-purple-50/50 hover:bg-purple-100/70 flex items-center gap-2.5 transition-colors">
                                     <i class="fa-solid fa-crown text-amber-500 text-sm w-5 text-center"></i>

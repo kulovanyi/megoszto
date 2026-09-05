@@ -87,6 +87,7 @@ const state = {
     activeConversation: null,
     activeMessages: [],
     unreadMessagesCount: 0,
+    pendingRentalsCount: 0,
     draftPartner: null,
     draftItem: null,
     calculator: {
@@ -107,15 +108,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { await initAuth(); } catch (e) {}
     try { await loadItems(); } catch (e) { console.error('Load items error:', e); }
 
-    // Rendszeres olvasatlan üzenet számláló frissítés
+    // Rendszeres értesítés és olvasatlan üzenet / új bérlés számláló frissítés (10 másodpercenként)
     setInterval(() => {
         if (state.currentUser) {
-            try { fetchUnreadCount(); } catch (e) {}
+            try { fetchNotifications(); } catch (e) {}
             if (state.activeTab === 'messages' && state.activeConversationId) {
                 try { refreshActiveChatSilently(); } catch (e) {}
             }
         }
-    }, 12000);
+    }, 10000);
 });
 
 
@@ -450,7 +451,7 @@ function renderAuthUI() {
         if (dropdownName) dropdownName.innerHTML = `${state.currentUser.name} ${providerBadge}`;
         if (dropdownEmail) dropdownEmail.textContent = state.currentUser.email || 'Bejelentkezve';
 
-        // Titkos Admin gomb megjelenítése csak Kornélnak / Adminnak
+        // Titkos Admin gomb megjelenítése csak Kornélnak / Adminnak a lenyíló menüben
         const isAdmin = state.currentUser.role === 'admin' || state.currentUser.is_admin || state.currentUser.email === 'kulovanyi.kornel@gmail.com';
         if (adminBtn) {
             if (isAdmin) {
@@ -467,15 +468,19 @@ function renderAuthUI() {
             }
         }
 
-        // Olvasatlan üzenetek számának lekérdezése
-        fetchUnreadCount();
+        // Értesítések (olvasatlan üzenetek és függőben lévő bérlések) lekérdezése
+        fetchNotifications();
     } else {
         if (loggedInBox) loggedInBox.classList.add('hidden');
         if (loggedOutBox) loggedOutBox.classList.remove('hidden');
+        const dot = document.getElementById('user-menu-notification-dot');
+        if (dot) dot.classList.add('hidden');
         const badge = document.getElementById('unread-messages-badge');
         if (badge) badge.classList.add('hidden');
         const dropdownBadge = document.getElementById('dropdown-unread-badge');
         if (dropdownBadge) dropdownBadge.classList.add('hidden');
+        const dropdownRentalsBadge = document.getElementById('dropdown-rentals-badge');
+        if (dropdownRentalsBadge) dropdownRentalsBadge.classList.add('hidden');
         toggleUserDropdown(false);
     }
 }
@@ -650,6 +655,7 @@ async function logoutUser() {
     state.activeConversation = null;
     state.activeMessages = [];
     state.unreadMessagesCount = 0;
+    state.pendingRentalsCount = 0;
     state.draftPartner = null;
     state.draftItem = null;
     state.selectedImageFile = null;
@@ -669,6 +675,15 @@ async function logoutUser() {
 
     const adminBtn = document.getElementById('admin-nav-btn');
     if (adminBtn) adminBtn.classList.add('hidden');
+
+    const dot = document.getElementById('user-menu-notification-dot');
+    if (dot) dot.classList.add('hidden');
+
+    const dropdownRentalsBadge = document.getElementById('dropdown-rentals-badge');
+    if (dropdownRentalsBadge) dropdownRentalsBadge.classList.add('hidden');
+
+    const dropdownBadge = document.getElementById('dropdown-unread-badge');
+    if (dropdownBadge) dropdownBadge.classList.add('hidden');
 
     const badge = document.getElementById('unread-messages-badge');
     if (badge) {
@@ -2105,19 +2120,26 @@ async function loadDashboardData() {
 
         // 1. Saját hirdetések
         const resMyItems = await fetch(`/api/items?user_id=${state.currentUser.id}`);
-        const myItems = await resMyItems.json();
+        const rawMyItems = resMyItems.ok ? await resMyItems.json() : [];
+        const myItems = Array.isArray(rawMyItems) ? rawMyItems : [];
 
         // 2. Kiadott eszközök bérlései (owner)
         const resOwner = await fetch(`/api/rentals?user_id=${state.currentUser.id}&role=owner`);
-        const incomingRentals = await resOwner.json();
+        const rawOwner = resOwner.ok ? await resOwner.json() : [];
+        const incomingRentals = Array.isArray(rawOwner) ? rawOwner : (rawOwner.incoming || []);
 
         // 3. Kölcsönzéseim bérlőként (renter)
         const resRenter = await fetch(`/api/rentals?user_id=${state.currentUser.id}&role=renter`);
-        const outgoingRentals = await resRenter.json();
+        const rawRenter = resRenter.ok ? await resRenter.json() : [];
+        const outgoingRentals = Array.isArray(rawRenter) ? rawRenter : (rawRenter.outgoing || []);
+
+        state.pendingRentalsCount = incomingRentals.filter(r => r.status === 'pending').length;
+        updateNotificationBadges();
 
         renderDashboardUI(myItems, incomingRentals, outgoingRentals);
     } catch (err) {
-        container.innerHTML = `<p class="text-rose-600 text-center py-8">Hiba történt az irányítópult betöltésekor.</p>`;
+        console.error('Hiba az irányítópult betöltésekor:', err);
+        container.innerHTML = `<p class="text-rose-600 text-center py-8">Hiba történt az irányítópult betöltésekor. Kérlek frissítsd az oldalt!</p>`;
     }
 }
 
@@ -2136,6 +2158,7 @@ function renderDashboardUI(myItems, incoming, outgoing) {
 
     const currentCount = state.currentUser.active_items_count !== undefined ? state.currentUser.active_items_count : myItems.length;
     const maxText = state.currentUser.max_items >= 9000 ? '∞' : (state.currentUser.max_items || 1);
+    const pendingIncomingCount = incoming.filter(r => r.status === 'pending').length;
 
     container.innerHTML = `
         <!-- MEGBÍZHATÓSÁGI ÉS PROFIL ÖSSZESÍTŐ SÁV -->
@@ -2188,12 +2211,18 @@ function renderDashboardUI(myItems, incoming, outgoing) {
             }">
                 <i class="fa-solid fa-boxes-stacked mr-1.5"></i> Saját hirdetéseim (${myItems.length})
             </button>
-            <button onclick="switchDashboardSubTab('incoming')" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap ${
+            <button onclick="switchDashboardSubTab('incoming')" class="relative px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap flex items-center gap-1.5 ${
                 isIncoming 
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' 
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }">
-                <i class="fa-solid fa-inbox mr-1.5"></i> Kiadott eszközeim bérlései (${incoming.length})
+                <i class="fa-solid fa-inbox mr-1"></i>
+                <span>Kiadott eszközeim bérlései (${incoming.length})</span>
+                ${pendingIncomingCount > 0 ? `
+                    <span class="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-black rounded-full animate-pulse shadow-sm">
+                        ${pendingIncomingCount} új
+                    </span>
+                ` : ''}
             </button>
             <button onclick="switchDashboardSubTab('outgoing')" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all whitespace-nowrap ${
                 isOutgoing 
@@ -3111,34 +3140,83 @@ function showToast(message, type = 'info') {
     }, 3500);
 }
 
-// --- BELSŐ ÜZENETKEZELŐ ÉS CHAT FUNKCIÓK ---
+// --- ÉRTESÍTÉSEK ÉS BELSŐ ÜZENETKEZELŐ FUNKCIÓK ---
 
-async function fetchUnreadCount() {
+async function fetchNotifications() {
     if (!state.currentUser) return;
     try {
-        const res = await fetch(`/api/messages/unread-count?user_id=${state.currentUser.id}`);
-        if (res.ok) {
-            const data = await res.json();
-            state.unreadMessagesCount = data.unread_count || 0;
-            const badge = document.getElementById('unread-messages-badge');
-            const dropdownBadge = document.getElementById('dropdown-unread-badge');
-            if (state.unreadMessagesCount > 0) {
-                if (badge) {
-                    badge.textContent = state.unreadMessagesCount;
-                    badge.classList.remove('hidden');
-                }
-                if (dropdownBadge) {
-                    dropdownBadge.textContent = state.unreadMessagesCount;
-                    dropdownBadge.classList.remove('hidden');
-                }
-            } else {
-                if (badge) badge.classList.add('hidden');
-                if (dropdownBadge) dropdownBadge.classList.add('hidden');
-            }
+        // 1. Olvasatlan üzenetek lekérdezése
+        const resMsg = await fetch(`/api/messages/unread-count?user_id=${state.currentUser.id}`);
+        if (resMsg.ok) {
+            const dataMsg = await resMsg.json();
+            state.unreadMessagesCount = dataMsg.unread_count || 0;
         }
+
+        // 2. Bejövő bérlési kérelmek (új / függőben lévő bérlések vizsgálata)
+        const resRent = await fetch(`/api/rentals?user_id=${state.currentUser.id}&role=owner`);
+        if (resRent.ok) {
+            const dataRent = await resRent.json();
+            const incomingList = Array.isArray(dataRent) ? dataRent : (dataRent.incoming || []);
+            state.pendingRentalsCount = incomingList.filter(r => r.status === 'pending').length;
+        }
+
+        updateNotificationBadges();
     } catch (err) {
-        console.warn('Olvasatlan üzenetek lekérdezési hiba:', err);
+        console.warn('Értesítések lekérdezési megjegyzés:', err);
     }
+}
+
+function updateNotificationBadges() {
+    const unreadMsgs = state.unreadMessagesCount || 0;
+    const pendingRentals = state.pendingRentalsCount || 0;
+    const totalNotifications = unreadMsgs + pendingRentals;
+
+    // 1. Fejléc avatar feletti piros értesítési pötty (Összesített állapot)
+    const dot = document.getElementById('user-menu-notification-dot');
+    if (dot) {
+        if (totalNotifications > 0) {
+            dot.classList.remove('hidden');
+        } else {
+            dot.classList.add('hidden');
+        }
+    }
+
+    // 2. Dropdown menü: Irányítópult & Bérléseim jelvény
+    const dropdownRentalsBadge = document.getElementById('dropdown-rentals-badge');
+    if (dropdownRentalsBadge) {
+        if (pendingRentals > 0) {
+            dropdownRentalsBadge.textContent = `${pendingRentals} új`;
+            dropdownRentalsBadge.classList.remove('hidden');
+        } else {
+            dropdownRentalsBadge.classList.add('hidden');
+        }
+    }
+
+    // 3. Dropdown menü: Belső Üzenetek jelvény
+    const dropdownUnreadBadge = document.getElementById('dropdown-unread-badge');
+    if (dropdownUnreadBadge) {
+        if (unreadMsgs > 0) {
+            dropdownUnreadBadge.textContent = String(unreadMsgs);
+            dropdownUnreadBadge.classList.remove('hidden');
+        } else {
+            dropdownUnreadBadge.classList.add('hidden');
+        }
+    }
+
+    // Régi fejléc jelvény (ha még létezne valahol a DOM-ban)
+    const badge = document.getElementById('unread-messages-badge');
+    if (badge) {
+        if (unreadMsgs > 0) {
+            badge.textContent = String(unreadMsgs);
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+async function fetchUnreadCount() {
+    await fetchNotifications();
 }
 
 function switchMessagesFolder(folder) {
@@ -3873,5 +3951,7 @@ window.filterConversations = filterConversations;
 window.cancelDraftChat = cancelDraftChat;
 window.triggerAdminTestEmail = triggerAdminTestEmail;
 window.toggleUserDropdown = toggleUserDropdown;
+window.fetchNotifications = fetchNotifications;
+window.updateNotificationBadges = updateNotificationBadges;
 
 
