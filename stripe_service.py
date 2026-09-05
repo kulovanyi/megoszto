@@ -53,7 +53,7 @@ def create_checkout_session(
                         "recurring": {"interval": "month"},
                         "product_data": {
                             "name": f"KölcsönAdó Havi Előfizetés - {plan_data['name']}",
-                            "description": f"Maximum {plan_data['max_items']} db eszköz meghirdetése (Havonta automatikusan megújuló)",
+                            "description": f"Maximum {plan_data['max_items'] if plan_data['max_items'] < 9000 else 'Végtelen'} db eszköz + {plan_data.get('featured_items', 0)} db kiemelt termék (30 napos megújuló előfizetés)",
                             "images": ["https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=400&q=80"]
                         },
                         "unit_amount": price_huf * 100,  # Fillérben
@@ -66,7 +66,8 @@ def create_checkout_session(
                     "plan_id": plan_id,
                     "plan_name": plan_data["name"],
                     "payment_type": "recurring_monthly",
-                    "max_items": str(plan_data["max_items"])
+                    "max_items": str(plan_data["max_items"]),
+                    "featured_items": str(plan_data.get("featured_items", 0))
                 },
                 success_url=f"{success_url}?session_id={{CHECKOUT_SESSION_ID}}&plan_id={plan_id}&user_id={user_id}",
                 cancel_url=cancel_url
@@ -175,9 +176,17 @@ def fulfill_subscription_payment(user_id: int, plan_id: str, plan_data: Dict[str
     """
     Aktiválja a havi előfizetést, növeli a felhasználó hirdetési limitjét és elmenti a tranzakciót.
     """
+    now = firebase_db.datetime.now()
+    expires_at = now + firebase_db.timedelta(days=30)
+
     user = firebase_db.update_user(user_id, {
         "subscription_plan": plan_id,
-        "max_items": plan_data["max_items"]
+        "max_items": plan_data["max_items"],
+        "featured_items_quota": plan_data.get("featured_items", 0),
+        "subscription_started_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "subscription_expires_at": expires_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "pending_downgrade_plan": None,
+        "pending_downgrade_at": None
     })
 
     if not user:

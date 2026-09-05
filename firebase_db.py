@@ -27,6 +27,72 @@ BOOST_PLANS = {
     }
 }
 
+SUBSCRIPTION_PLANS = {
+    "free": {
+        "id": "free",
+        "name": "Ingyenes Alap",
+        "price": 0,
+        "max_items": 1,
+        "featured_items": 0,
+        "badge": "Kezdő",
+        "features": [
+            "1 eszköz ingyenes meghirdetése",
+            "0 db kiemelt hirdetés",
+            "Alap megjelenés a keresőben",
+            "Közösségi értékelések & profil"
+        ]
+    },
+    "starter_3": {
+        "id": "starter_3",
+        "name": "Kertbarát Csomag",
+        "price": 1490,
+        "max_items": 3,
+        "featured_items": 0,
+        "badge": "Népszerű",
+        "features": [
+            "Akár 3 eszköz meghirdetése",
+            "0 db kiemelt hirdetés",
+            "Gyorsabb bérlési kapcsolat",
+            "0-24 online ügyféltámogatás"
+        ]
+    },
+    "pro_10": {
+        "id": "pro_10",
+        "name": "Ezermester Csomag",
+        "price": 4490,
+        "max_items": 10,
+        "featured_items": 1,
+        "badge": "Legjobb érték",
+        "features": [
+            "Akár 10 eszköz meghirdetése",
+            "⚡ 1 db hirdetés folyamatosan kiemelve",
+            "TOP Kiemelt lista a főoldalon",
+            "Részletes bérleti statisztikák"
+        ]
+    },
+    "unlimited": {
+        "id": "unlimited",
+        "name": "Profi Kölcsönző",
+        "price": 14990,
+        "max_items": 9999,
+        "featured_items": 3,
+        "badge": "Korlátlan",
+        "features": [
+            "Bármennyi szerszám és gép feltöltése (Végtelen)",
+            "⚡⚡⚡ 3 db hirdetés folyamatosan kiemelve",
+            "VIP arany partner jelvény a hirdetéseken",
+            "0-24 VIP kiemelt ügyfélszolgálat"
+        ]
+    }
+}
+
+PLAN_RANKS = {
+    "free": 0,
+    "starter_3": 1,
+    "pro_10": 2,
+    "unlimited": 3
+}
+
 ADMIN_EMAILS = {"kulovanyi.kornel@gmail.com"}
 
 def load_local_store() -> Dict[str, Any]:
@@ -163,6 +229,51 @@ def get_collection_docs(col_name: str) -> Dict[str, Dict[str, Any]]:
 
 # --- FELHASZNÁLÓK (USERS) ---
 
+def check_and_update_user_subscription(user: Dict[str, Any]) -> Dict[str, Any]:
+    expires_str = user.get('subscription_expires_at')
+    pending_plan = user.get('pending_downgrade_plan')
+    remaining_days = None
+    is_expired = False
+
+    if expires_str:
+        try:
+            clean_str = str(expires_str).replace('T', ' ').split('.')[0]
+            if len(clean_str) == 10:
+                clean_str += ' 23:59:59'
+            exp_date = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+            now = datetime.now()
+            diff = (exp_date - now).total_seconds()
+            if diff > 0:
+                remaining_days = max(1, int(diff // 86400) + (1 if diff % 86400 > 0 else 0))
+            else:
+                is_expired = True
+                remaining_days = 0
+        except Exception:
+            pass
+
+    if is_expired and pending_plan and pending_plan in SUBSCRIPTION_PLANS:
+        new_plan = SUBSCRIPTION_PLANS[pending_plan]
+        uid = int(user.get('id', 0))
+        update_data = {
+            'subscription_plan': pending_plan,
+            'max_items': new_plan['max_items'],
+            'featured_items_quota': new_plan.get('featured_items', 0),
+            'pending_downgrade_plan': None,
+            'pending_downgrade_at': None,
+            'subscription_expires_at': None
+        }
+        user.update(update_data)
+        if uid > 0:
+            update_user(uid, update_data)
+        remaining_days = None
+
+    return {
+        'remaining_days': remaining_days,
+        'subscription_expires_at': user.get('subscription_expires_at'),
+        'pending_downgrade_plan': user.get('pending_downgrade_plan'),
+        'pending_downgrade_at': user.get('pending_downgrade_at')
+    }
+
 def get_user_stats(user_id: int, items_dict: Optional[Dict[str, Any]] = None, rentals_dict: Optional[Dict[str, Any]] = None, users_dict: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     if items_dict is None:
         items_dict = get_collection_docs('items')
@@ -180,12 +291,17 @@ def get_user_stats(user_id: int, items_dict: Optional[Dict[str, Any]] = None, re
     user_email = (user.get('email') or '').strip().lower()
     is_admin = user_email in ADMIN_EMAILS or user.get('role') == 'admin' or bool(user.get('is_admin'))
 
+    sub_status = check_and_update_user_subscription(user)
+
     return {
         'active_items_count': active_items,
         'completed_as_owner': completed_as_owner,
         'completed_as_renter': completed_as_renter,
         'role': 'admin' if is_admin else user.get('role', 'user'),
-        'is_admin': is_admin
+        'is_admin': is_admin,
+        'remaining_days': sub_status.get('remaining_days'),
+        'pending_downgrade_plan': sub_status.get('pending_downgrade_plan'),
+        'pending_downgrade_at': sub_status.get('pending_downgrade_at')
     }
 
 def get_users() -> List[Dict[str, Any]]:

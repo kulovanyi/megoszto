@@ -199,10 +199,10 @@
     }
 
     const PLANS = [
-        { id: 'free', name: 'Ingyenes Alap', price: 0, max_items: 1, badge: 'Kezdő', features: ['1 eszköz ingyenes meghirdetése', 'Alap megjelenés', 'Bérleti kalkulátor', 'Közösségi értékelések'] },
-        { id: 'starter_3', name: 'Kertbarát Csomag', price: 1490, max_items: 3, badge: 'Népszerű', features: ['Akár 3 eszköz meghirdetése', 'Gyorsabb foglalás', 'Kiemelt kategória pozíció', '0-24 ügyféltámogatás'] },
-        { id: 'pro_10', name: 'Ezermester Csomag', price: 3990, max_items: 10, badge: 'Legjobb érték', features: ['Akár 10 eszköz meghirdetése', 'TOP Kiemelt lista a főoldalon', 'Közvetlen telefonos kiemelés', 'Részletes statisztikák'] },
-        { id: 'unlimited', name: 'Profi Kölcsönző (Végtelen)', price: 7990, max_items: 9999, badge: 'Korlátlan', features: ['Végtelen eszköz feltöltése', 'Arany jelvény a hirdetéseken', '0% platform jutalék', 'Kiemelt VIP ügyfélszolgálat'] }
+        { id: 'free', name: 'Ingyenes Alap', price: 0, max_items: 1, featured_items: 0, badge: 'Kezdő', features: ['1 eszköz ingyenes meghirdetése', '0 db kiemelt hirdetés', 'Alap megjelenés a keresőben', 'Közösségi értékelések & profil'] },
+        { id: 'starter_3', name: 'Kertbarát Csomag', price: 1490, max_items: 3, featured_items: 0, badge: 'Népszerű', features: ['Akár 3 eszköz meghirdetése', '0 db kiemelt hirdetés', 'Gyorsabb bérlési kapcsolat', '0-24 online ügyféltámogatás'] },
+        { id: 'pro_10', name: 'Ezermester Csomag', price: 4490, max_items: 10, featured_items: 1, badge: 'Legjobb érték', features: ['Akár 10 eszköz meghirdetése', '⚡ 1 db hirdetés folyamatosan kiemelve', 'TOP Kiemelt lista a főoldalon', 'Részletes bérleti statisztikák'] },
+        { id: 'unlimited', name: 'Profi Kölcsönző', price: 14990, max_items: 9999, featured_items: 3, badge: 'Korlátlan', features: ['Bármennyi szerszám és gép feltöltése (Végtelen)', '⚡⚡⚡ 3 db hirdetés folyamatosan kiemelve', 'VIP arany partner jelvény a hirdetéseken', '0-24 VIP kiemelt ügyfélszolgálat'] }
     ];
 
     const TARGET_EMAIL = 'kulovanyi.kornel@gmail.com';
@@ -781,6 +781,55 @@
             return makeResponse({ message: 'Üzenet elküldve!', message_data: newMsg, conversation_id: conv.id });
         }
 
+        // 11.B UPGRADE / DOWNGRADE
+        if (path.match(/\/api\/users\/\d+\/upgrade/) && method === 'POST') {
+            const uid = path.split('/')[3];
+            const plan = PLANS.find(p => p.id === body.plan_id) || PLANS[0];
+            const usersDict = await getFirestoreCollection('users');
+            const currentUser = usersDict[String(uid)] || {};
+            const currentPlanId = currentUser.subscription_plan || 'free';
+            const ranks = { 'free': 0, 'starter_3': 1, 'pro_10': 2, 'unlimited': 3 };
+            const currentRank = ranks[currentPlanId] || 0;
+            const targetRank = ranks[plan.id] || 0;
+
+            if (targetRank < currentRank && currentUser.subscription_expires_at) {
+                const expDate = new Date(currentUser.subscription_expires_at);
+                const diffMs = expDate.getTime() - Date.now();
+                const remDays = diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
+                if (remDays > 0) {
+                    await updateFirestoreDoc('users', uid, {
+                        pending_downgrade_plan: plan.id,
+                        pending_downgrade_at: currentUser.subscription_expires_at
+                    });
+                    return makeResponse({
+                        message: `A csomagváltás rögzítve! A jelenlegi (${currentUser.subscription_plan}) csomagod még ${remDays} napig aktív marad a kifizetett 30 napos időszak végéig. Ezt követően aktiválódik a(z) ${plan.name} csomag.`,
+                        user: { ...currentUser, pending_downgrade_plan: plan.id, pending_downgrade_at: currentUser.subscription_expires_at },
+                        plan: plan,
+                        pending_downgrade: true,
+                        remaining_days: remDays
+                    });
+                }
+            }
+
+            const exp = new Date();
+            exp.setDate(exp.getDate() + 30);
+            const updatedData = {
+                subscription_plan: plan.id,
+                max_items: plan.max_items,
+                featured_items_quota: plan.featured_items || 0,
+                pending_downgrade_plan: null,
+                pending_downgrade_at: null,
+                subscription_expires_at: plan.id === 'free' ? null : exp.toISOString()
+            };
+            await updateFirestoreDoc('users', uid, updatedData);
+            return makeResponse({
+                message: `Sikeres csomagváltás! Új csomagod: ${plan.name} (Maximum ${plan.max_items < 9000 ? plan.max_items + ' db' : 'Végtelen'} hirdetés)`,
+                user: { ...currentUser, ...updatedData },
+                plan: plan,
+                pending_downgrade: false
+            });
+        }
+
         // 12. STRIPE / BOOST
         if (path.includes('/api/stripe/create-checkout-session')) {
             const plan = PLANS.find(p => p.id === body.plan_id) || PLANS[1];
@@ -788,7 +837,17 @@
         }
         if (path.includes('/api/stripe/confirm-payment')) {
             const plan = PLANS.find(p => p.id === body.plan_id) || PLANS[1];
-            await updateFirestoreDoc('users', body.user_id, { subscription_plan: plan.id, max_items: plan.max_items });
+            const exp = new Date();
+            exp.setDate(exp.getDate() + 30);
+            await updateFirestoreDoc('users', body.user_id, {
+                subscription_plan: plan.id,
+                max_items: plan.max_items,
+                featured_items_quota: plan.featured_items || 0,
+                subscription_started_at: new Date().toISOString(),
+                subscription_expires_at: exp.toISOString(),
+                pending_downgrade_plan: null,
+                pending_downgrade_at: null
+            });
             return makeResponse({ message: 'Sikeres előfizetés: ' + plan.name });
         }
         if (path.includes('/api/stripe/create-boost-checkout')) {

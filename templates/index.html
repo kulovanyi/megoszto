@@ -768,32 +768,51 @@
                         <i class="fa-solid fa-crown text-amber-500"></i> Hirdetési Csomagok & Bővítés
                     </div>
                     <h3 class="text-2xl font-black text-slate-900">Válassz Hirdetési Csomagot</h3>
-                    <p class="text-xs sm:text-sm text-slate-500">Mindenki <strong>1 terméket ingyen</strong> tölthet fel. Ha több szerszámot vagy gépet szeretnél kiadni, válassz csomagot!</p>
+                    <p class="text-xs sm:text-sm text-slate-500">Mindenki <strong>1 terméket ingyen</strong> tölthet fel. Válassz nagyobb csomagot a hirdetésszám és a folyamatosan kiemelt helyek aktiválásához!</p>
                 </div>
                 <button onclick="closeSubscriptionModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition-colors">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
+            <!-- Függőben lévő csomagváltás értesítő (ha van) -->
+            <div id="subscription-pending-banner" class="hidden"></div>
+
             <!-- Csomagok rácsa -->
             <div id="plans-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                <!-- JS generálja a 4 csomagot -->
+                <!-- JS generálja a 4 csomagot egységes hasábos elrendezéssel -->
             </div>
 
-            <div class="mt-8 bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
-                <div class="flex items-center gap-2 font-medium">
-                    <i class="fa-solid fa-shield-halved text-emerald-600 text-sm"></i>
-                    <span>Bármikor lemondható vagy módosítható. Azonnali hirdetéshely jóváírás!</span>
+            <!-- Magyar jogszabályi megfelelőség & Visszatérítési tájékoztató doboz -->
+            <div class="mt-8 pt-6 border-t border-slate-100 space-y-4">
+                <div class="bg-amber-50/60 rounded-2xl p-4 border border-amber-200 text-xs text-amber-950 space-y-2">
+                    <div class="flex items-center gap-2 font-black text-amber-900">
+                        <i class="fa-solid fa-scale-balanced text-amber-600"></i>
+                        <span>Magyar jogszabályok szerinti tájékoztató és csomagváltási szabályzat</span>
+                    </div>
+                    <p class="leading-relaxed text-[11px] text-amber-900/90">
+                        • <strong>30 napos megőrzési garancia csomagváltáskor:</strong> Ha kisebb csomagra váltasz, a meglévő nagyobb előfizetésed funkciói a már kifizetett 30 napos ciklus végéig változatlanul élnek (pl. 20 nap után még további 10 napig). Az új, alacsonyabb díj csak a 30 nap lejárta után élesedik.
+                    </p>
+                    <p class="leading-relaxed text-[11px] text-amber-900/90">
+                        • <strong>Nincs visszatérítés megkezdett időszakra:</strong> A 45/2014. (II. 26.) Korm. rendelet 29. § (1) m) pontja értelmében a nem tárgyi adathordozón nyújtott digitális adattartalom és azonnal aktivált előfizetések esetén a teljesítés megkezdése után a fogyasztó elveszíti az elállási jogát (a már megkezdett és kifizetett havi időszakra nincs visszatérítés).
+                    </p>
                 </div>
-                <div class="flex items-center gap-2 font-bold text-slate-500">
-                    <span class="text-[11px] uppercase tracking-wider text-slate-400">Biztonságos fizetés:</span>
-                    <span class="px-2 py-1 bg-white rounded-lg border border-slate-200 text-[#635BFF] font-black text-xs flex items-center gap-1">
-                        <i class="fa-brands fa-stripe text-lg"></i> stripe
-                    </span>
-                    <i class="fa-brands fa-cc-visa text-blue-600 text-lg"></i>
-                    <i class="fa-brands fa-cc-mastercard text-red-500 text-lg"></i>
-                    <i class="fa-brands fa-apple-pay text-slate-800 text-lg"></i>
-                    <i class="fa-brands fa-google-pay text-slate-800 text-lg"></i>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+                    <div class="flex items-center gap-2 font-medium">
+                        <i class="fa-solid fa-shield-halved text-emerald-600 text-sm"></i>
+                        <span>Bármikor lemondható vagy módosítható. Azonnali hirdetéshely jóváírás!</span>
+                    </div>
+                    <div class="flex items-center gap-2 font-bold text-slate-500">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400">Biztonságos fizetés:</span>
+                        <span class="px-2 py-1 bg-white rounded-lg border border-slate-200 text-[#635BFF] font-black text-xs flex items-center gap-1">
+                            <i class="fa-brands fa-stripe text-lg"></i> stripe
+                        </span>
+                        <i class="fa-brands fa-cc-visa text-blue-600 text-lg"></i>
+                        <i class="fa-brands fa-cc-mastercard text-red-500 text-lg"></i>
+                        <i class="fa-brands fa-apple-pay text-slate-800 text-lg"></i>
+                        <i class="fa-brands fa-google-pay text-slate-800 text-lg"></i>
+                    </div>
                 </div>
             </div>
         </div>

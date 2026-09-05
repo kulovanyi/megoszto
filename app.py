@@ -150,32 +150,56 @@ SUBSCRIPTION_PLANS = {
         "name": "Ingyenes Alap",
         "price": 0,
         "max_items": 1,
+        "featured_items": 0,
         "badge": "Kezdő",
-        "features": ["1 eszköz ingyenes meghirdetése", "Alap megjelenés", "Bérleti kalkulátor", "Közösségi értékelések"]
+        "features": [
+            "1 eszköz ingyenes meghirdetése",
+            "0 db kiemelt hirdetés",
+            "Alap megjelenés a keresőben",
+            "Közösségi értékelések & profil"
+        ]
     },
     "starter_3": {
         "id": "starter_3",
         "name": "Kertbarát Csomag",
         "price": 1490,
         "max_items": 3,
+        "featured_items": 0,
         "badge": "Népszerű",
-        "features": ["Akár 3 eszköz meghirdetése", "Gyorsabb foglalás", "Kiemelt kategória pozíció", "0-24 ügyféltámogatás"]
+        "features": [
+            "Akár 3 eszköz meghirdetése",
+            "0 db kiemelt hirdetés",
+            "Gyorsabb bérlési kapcsolat",
+            "0-24 online ügyféltámogatás"
+        ]
     },
     "pro_10": {
         "id": "pro_10",
         "name": "Ezermester Csomag",
-        "price": 3990,
+        "price": 4490,
         "max_items": 10,
+        "featured_items": 1,
         "badge": "Legjobb érték",
-        "features": ["Akár 10 eszköz meghirdetése", "TOP Kiemelt lista a főoldalon", "Közvetlen telefonos kiemelés", "Részletes bérleti statisztika"]
+        "features": [
+            "Akár 10 eszköz meghirdetése",
+            "⚡ 1 db hirdetés folyamatosan kiemelve",
+            "TOP Kiemelt lista a főoldalon",
+            "Részletes bérleti statisztikák"
+        ]
     },
     "unlimited": {
         "id": "unlimited",
-        "name": "Profi Kölcsönző (Végtelen)",
-        "price": 7990,
+        "name": "Profi Kölcsönző",
+        "price": 14990,
         "max_items": 9999,
+        "featured_items": 3,
         "badge": "Korlátlan",
-        "features": ["Végtelen eszköz feltöltése", "Arany jelvény a hirdetéseken", "0% platform közvetítői jutalék", "Kiemelt VIP ügyfélszolgálat"]
+        "features": [
+            "Bármennyi szerszám és gép feltöltése (Végtelen)",
+            "⚡⚡⚡ 3 db hirdetés folyamatosan kiemelve",
+            "VIP arany partner jelvény a hirdetéseken",
+            "0-24 VIP kiemelt ügyfélszolgálat"
+        ]
     }
 }
 
@@ -479,23 +503,72 @@ def get_admin_dashboard_data(user_id: int = Query(...)):
 def get_users():
     return firebase_db.get_users()
 
+PLAN_RANKS = {
+    "free": 0,
+    "starter_3": 1,
+    "pro_10": 2,
+    "unlimited": 3
+}
+
 @app.post("/api/users/{user_id}/upgrade")
 def upgrade_user_plan(user_id: int, req: UpgradeRequest):
     if req.plan_id not in SUBSCRIPTION_PLANS:
         raise HTTPException(status_code=400, detail="Érvénytelen előfizetési csomag!")
     
     plan = SUBSCRIPTION_PLANS[req.plan_id]
-    user = firebase_db.update_user(user_id, {
-        "subscription_plan": plan["id"],
-        "max_items": plan["max_items"]
-    })
-    if not user:
+    current_user = firebase_db.get_user_by_id(user_id)
+    if not current_user:
         raise HTTPException(status_code=404, detail="Felhasználó nem található!")
 
+    current_plan_id = current_user.get("subscription_plan", "free")
+    current_rank = PLAN_RANKS.get(current_plan_id, 0)
+    target_rank = PLAN_RANKS.get(req.plan_id, 0)
+
+    # Visszalépés (Downgrade) kezelése:
+    # Ha a felhasználó egy kisebb csomagra vált, a jelenlegi csomag érvényben marad a 30 napos kifizetett időszak végéig!
+    if target_rank < current_rank and current_user.get("subscription_expires_at"):
+        exp_str = current_user["subscription_expires_at"]
+        rem_days = 0
+        try:
+            clean_str = str(exp_str).replace('T', ' ').split('.')[0]
+            if len(clean_str) == 10:
+                clean_str += ' 23:59:59'
+            exp_date = datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+            diff = (exp_date - datetime.now()).total_seconds()
+            rem_days = max(1, int(diff // 86400) + (1 if diff % 86400 > 0 else 0)) if diff > 0 else 0
+        except Exception:
+            rem_days = 0
+
+        if rem_days > 0:
+            user = firebase_db.update_user(user_id, {
+                "pending_downgrade_plan": plan["id"],
+                "pending_downgrade_at": current_user["subscription_expires_at"]
+            })
+            current_plan_name = SUBSCRIPTION_PLANS.get(current_plan_id, {}).get("name", current_plan_id)
+            exp_display = current_user['subscription_expires_at'][:10]
+            return {
+                "message": f"A csomagváltás rögzítve! A jelenlegi ({current_plan_name}) csomagod még {rem_days} napig ({exp_display}-ig) aktív marad a kifizetett 30 napos időszak végéig. Ezt követően aktiválódik a(z) {plan['name']} csomag.",
+                "user": user,
+                "plan": plan,
+                "pending_downgrade": True,
+                "remaining_days": rem_days
+            }
+
+    # Azonnali váltás (ha lejárt, vagy új feliratkozás)
+    user = firebase_db.update_user(user_id, {
+        "subscription_plan": plan["id"],
+        "max_items": plan["max_items"],
+        "featured_items_quota": plan.get("featured_items", 0),
+        "pending_downgrade_plan": None,
+        "pending_downgrade_at": None,
+        "subscription_expires_at": None if plan["id"] == "free" else (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    })
+
     return {
-        "message": f"Sikeres előfizetés! Új csomagod: {plan['name']} (Maximum {plan['max_items'] if plan['max_items'] < 9000 else 'Végtelen'} hirdetés)",
+        "message": f"Sikeres csomagváltás! Új csomagod: {plan['name']} (Maximum {plan['max_items'] if plan['max_items'] < 9000 else 'Végtelen'} hirdetés)",
         "user": user,
-        "plan": plan
+        "plan": plan,
+        "pending_downgrade": False
     }
 
 @app.post("/api/users")
