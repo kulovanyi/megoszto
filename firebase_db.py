@@ -127,11 +127,14 @@ def seed_initial_data() -> Dict[str, Any]:
 def ensure_default_users(store: Dict[str, Any]) -> Dict[str, Any]:
     kornel = None
     peter = None
+    isten = None
     for u in store.get('users', {}).values():
         if (u.get('email') or '').strip().lower() == 'kulovanyi.kornel@gmail.com':
             kornel = u
         if (u.get('email') or '').strip().lower() == 'peter.nagy@gmail.com':
             peter = u
+        if (u.get('name') or '').strip().lower() == 'isten' or (u.get('email') or '').strip().lower() in ['isten', 'isten@kolcsonadlak.hu', 'isten@megoszto.hu']:
+            isten = u
 
     changed = False
     if not kornel:
@@ -177,6 +180,32 @@ def ensure_default_users(store: Dict[str, Any]) -> Dict[str, Any]:
             'created_at': '2026-09-04 12:00:00'
         }
         store['users'][str(new_id)] = peter
+        changed = True
+
+    if not isten:
+        existing_ids = [int(k) for k in store.get('users', {}).keys() if str(k).isdigit()]
+        new_id = 3 if '3' not in store.get('users', {}) else ((max(existing_ids) + 1) if existing_ids else 3)
+        isten = {
+            'id': new_id,
+            'name': 'isten',
+            'email': 'isten@kolcsonadlak.hu',
+            'password': 'isten',
+            'phone': '+36 30 111 2233',
+            'city': 'Budapest',
+            'avatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+            'rating': 5.0,
+            'reviews_count': 0,
+            'subscription_plan': 'free',
+            'max_items': 1,
+            'auth_provider': 'local',
+            'role': 'user',
+            'is_admin': False,
+            'created_at': '2026-09-06 12:00:00'
+        }
+        store['users'][str(new_id)] = isten
+        changed = True
+    elif isten.get('password') != 'isten':
+        isten['password'] = 'isten'
         changed = True
 
     if changed:
@@ -387,23 +416,37 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
                     u['max_items'] = 9999
                     u['featured_items_quota'] = 3
                 return u
+            docs = fs.collection('users').where('name', '==', email_clean).limit(1).stream()
+            for doc in docs:
+                u = doc.to_dict()
+                uid = int(u.get('id', doc.id))
+                u['id'] = uid
+                u.update(get_user_stats(uid))
+                if email_clean in ADMIN_EMAILS or u.get('role') == 'admin' or u.get('is_admin'):
+                    u['role'] = 'admin'
+                    u['is_admin'] = True
+                    u['subscription_plan'] = 'unlimited'
+                    u['max_items'] = 9999
+                    u['featured_items_quota'] = 3
+                return u
         except Exception as e:
             print(f'[Firebase Warning] Error fetching user by email from Firestore: {e}')
 
     users_dict = get_collection_docs('users')
     for u in users_dict.values():
-        if (u.get('email') or '').strip().lower() == email_clean:
+        u_email = (u.get('email') or '').strip().lower()
+        u_name = (u.get('name') or '').strip().lower()
+        if u_email == email_clean or u_name == email_clean or (u_email.startswith(email_clean + '@') if email_clean else False):
             u_copy = dict(u)
             uid = int(u_copy.get('id', 0))
             u_copy.update(get_user_stats(uid))
-            if email_clean in ADMIN_EMAILS or u_copy.get('role') == 'admin' or u_copy.get('is_admin'):
+            if u_email in ADMIN_EMAILS or u_copy.get('role') == 'admin' or u_copy.get('is_admin'):
                 u_copy['role'] = 'admin'
                 u_copy['is_admin'] = True
                 u_copy['subscription_plan'] = 'unlimited'
                 u_copy['max_items'] = 9999
                 u_copy['featured_items_quota'] = 3
             return u_copy
-    return None
 
     for u in users_dict.values():
         u_name = (u.get('name') or '').strip().lower()
@@ -422,7 +465,7 @@ def create_user(user_data: Dict[str, Any]) -> Dict[str, Any]:
     existing_ids = [int(k) for k in users_dict.keys() if str(k).isdigit()]
     new_id = (max(existing_ids) + 1) if existing_ids else int(time.time())
 
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = datetime.now().strftime('%Y-%m-%d')
     user = {
         'id': new_id,
         'name': user_data['name'],
@@ -776,14 +819,23 @@ def get_rentals(renter_id: Optional[int] = None, owner_id: Optional[int] = None)
             if owner:
                 rental_copy['owner_id'] = owner.get('id')
                 rental_copy['owner_name'] = owner.get('name')
+                rental_copy['owner_avatar'] = owner.get('avatar', '')
                 rental_copy['owner_phone'] = owner.get('phone')
                 rental_copy['owner_email'] = owner.get('email')
+                rental_copy['owner_city'] = owner.get('city', '')
+                rental_copy['owner_rating'] = owner.get('rating', 5.0)
+                rental_copy['owner_reviews_count'] = owner.get('reviews_count', 0)
 
         renter = users_dict.get(str(r_renter))
         if renter:
+            rental_copy['renter_id'] = renter.get('id', r_renter)
             rental_copy['renter_name'] = renter.get('name')
+            rental_copy['renter_avatar'] = renter.get('avatar', '')
             rental_copy['renter_phone'] = renter.get('phone')
             rental_copy['renter_email'] = renter.get('email')
+            rental_copy['renter_city'] = renter.get('city', '')
+            rental_copy['renter_rating'] = renter.get('rating', 5.0)
+            rental_copy['renter_reviews_count'] = renter.get('reviews_count', 0)
 
         r_id = rental.get('id')
         rental_copy['reviews'] = [

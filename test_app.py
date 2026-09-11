@@ -22,7 +22,7 @@ def run_tests():
     # 1. Főoldal ellenőrzése
     res = client.get("/")
     assert res.status_code == 200, f"Fooldal betoltesi hiba: {res.status_code}"
-    assert "Megosztó" in res.text or "megoszto.hu" in res.text
+    assert "Kölcsönadlak" in res.text or "kolcsonadlak.hu" in res.text
     print("[OK] 1. Fooldal HTML sikeresen betoltodik")
 
     # 2. Felhasználók lekérdezése
@@ -87,19 +87,24 @@ def run_tests():
     assert res_edit.json()["item"]["price"] == 3000
     print("[OK] 8. Hirdetes sikeresen modositva a Firebase-ben")
 
-    # 9. Bérlési kérelem rögzítése
+    # 9. Bérlési kérelem rögzítése (dinamikus egyedi dátummal)
+    import time, random
+    rand_year = random.randint(2030, 2090)
+    rand_month = random.randint(1, 12)
+    start_d = f"{rand_year}-{rand_month:02d}-05"
+    end_d = f"{rand_year}-{rand_month:02d}-08"
     rental_req = {
         "item_id": new_item_id,
         "renter_id": renter_user["id"],
-        "start_date": "2026-11-20",
-        "end_date": "2026-11-22",
-        "units_count": 2,
-        "total_price": 6000,
+        "start_date": start_d,
+        "end_date": end_d,
+        "units_count": 3,
+        "total_price": 9000,
         "deposit": 5000,
         "note": "Teszt berles"
     }
     res_rental = client.post("/api/rentals", json=rental_req)
-    assert res_rental.status_code == 200
+    assert res_rental.status_code == 200, f"Rental hiba: {res_rental.text}"
     rental_id = res_rental.json()["id"]
     print(f"[OK] 9. Berlesi kerelem mentese Firebase-be sikeres (Rental ID: {rental_id})")
 
@@ -113,11 +118,18 @@ def run_tests():
     assert res_del.status_code == 200
     print("[OK] 11. Teszt hirdetes sikeresen torolve a Firebase-bol")
 
-    # 12. Firebase állapot ellenőrzése
+    # 12. Landing page ellenőrzése
+    res_landing = client.get("/landing")
+    assert res_landing.status_code == 200
+    assert "Belekezdek" in res_landing.text
+    assert "Garázs" in res_landing.text or "garazs" in res_landing.text.lower()
+    print("[OK] 12. Landing page (Belekezdek & Garázskiadás) sikeresen betöltődik")
+
+    # 13. Firebase állapot ellenőrzése
     res_fb_status = client.get("/api/firebase/status")
     assert res_fb_status.status_code == 200
     fb_status_data = res_fb_status.json()
-    print(f"[OK] 12. Firebase kapcsolat ellenorizve ({fb_status_data.get('database_type', 'Aktiv')})")
+    print(f"[OK] 13. Firebase kapcsolat ellenorizve ({fb_status_data.get('database_type', 'Aktiv')})")
 
     print("\n*** MINDEN FIREBASE ADATBAZIS ES API INTEGRACIOS TESZT SIKERESEN LEFUTOTT! ***")
 

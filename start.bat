@@ -1,8 +1,8 @@
 @echo off
-title Megoszto - Kozossegi Eszkozmegoszto
+title Kolcsonadlak.hu - Kozossegi Eszkozmegoszto
 cls
 echo ========================================================
-echo       MEGOSZTO.HU - KOZOSSEGI ESZKOZMEGOSZTO
+echo       KOLCSONADLAK.HU - KOZOSSEGI ESZKOZMEGOSZTO
 echo ========================================================
 echo.
 echo Szerver inditasa folyamatban...

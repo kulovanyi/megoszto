@@ -1,8 +1,8 @@
 @echo off
-title Megoszto.hu - Feltoltes GitHub-ra
+title Kolcsonadlak.hu - Feltoltes GitHub-ra
 cls
 echo ========================================================
-echo       MEGOSZTO.HU - FELTOLTES GITHUB-RA
+echo       KOLCSONADLAK.HU - FELTOLTES GITHUB-RA
 echo ========================================================
 echo.
 echo 1. Aktualis valtozasok lekerdezese...

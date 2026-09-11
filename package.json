@@ -1,0 +1,9 @@
+{
+  "name": "kolcsonadlak-mail",
+  "version": "1.0.0",
+  "description": "Kölcsönadlak Mail API",
+  "main": "api/send-email.js",
+  "dependencies": {
+    "nodemailer": "^6.10.1"
+  }
+}

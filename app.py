@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import firebase_db
 from firebase_config import init_firebase, is_live_firebase
 
-app = FastAPI(title="Megosztó - megoszto.hu Közösségi Eszközmegosztó")
+app = FastAPI(title="Kölcsönadlak - kolcsonadlak.hu Közösségi Eszközmegosztó")
 
 
 
@@ -207,10 +207,26 @@ def read_root():
         return FileResponse(root_index)
     return FileResponse(os.path.join(TEMPLATES_DIR, "index.html"))
 
+@app.get("/landing")
+@app.get("/landing.html")
+def read_landing():
+    root_landing = os.path.join(BASE_DIR, "landing.html")
+    if os.path.exists(root_landing):
+        return FileResponse(root_landing)
+    return FileResponse(os.path.join(TEMPLATES_DIR, "landing.html"))
+
 @app.get("/favicon.ico")
 def favicon():
     from fastapi import Response
     return Response(status_code=204)
+
+@app.get("/robots.txt")
+def read_robots():
+    return FileResponse(os.path.join(BASE_DIR, "robots.txt"), media_type="text/plain")
+
+@app.get("/sitemap.xml")
+def read_sitemap():
+    return FileResponse(os.path.join(BASE_DIR, "sitemap.xml"), media_type="application/xml")
 
 # --- FIREBASE STÁTUSZ ENDPOINT ---
 
@@ -570,6 +586,28 @@ def create_user_direct(user: UserCreate):
         raise HTTPException(status_code=400, detail="Ez az e-mail cím már regisztrálva van!")
     return firebase_db.create_user(user.dict())
 
+@app.get("/api/users/{user_id}/public")
+def get_public_user_profile(user_id: int):
+    user = firebase_db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Felhasználó nem található!")
+    items = firebase_db.get_items(user_id=user_id)
+    return {
+        "id": user.get("id"),
+        "name": user.get("name"),
+        "avatar": user.get("avatar"),
+        "city": user.get("city") or "Magyarország",
+        "phone": user.get("phone") or "Nincs megadva",
+        "email": user.get("email") or "",
+        "rating": user.get("rating") or 5.0,
+        "reviews_count": user.get("reviews_count") or 0,
+        "subscription_plan": user.get("subscription_plan") or "free",
+        "role": user.get("role") or "user",
+        "created_at": (user.get("created_at") or "2026-09-01").split("T")[0].split(" ")[0],
+        "active_items": items,
+        "reviews": []
+    }
+
 # --- HIRDETÉSEK (FIREBASE) ---
 
 @app.get("/api/items")
@@ -690,36 +728,35 @@ def create_rental(rental: RentalCreate):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Automatikus e-mail értesítők küldése mindkét félnek (bérbeadónak és bérlőnek is)
+    # Automatikus e-mail értesítő küldése a bérbeadónak (és admin másolat)
     try:
         item = firebase_db.get_item_by_id(rental.item_id)
         if item:
             owner = firebase_db.get_user_by_id(item.get("user_id"))
             renter = firebase_db.get_user_by_id(rental.renter_id)
-            email_service.send_rental_notifications(
+            email_service.send_rental_request_to_owner(
                 owner_name=owner.get("name", "Bérbeadó") if owner else "Bérbeadó",
                 owner_phone=owner.get("phone", "") if owner else "",
-                owner_email=owner.get("email", "kulovanyi.kornel@gmail.com") if owner else "kulovanyi.kornel@gmail.com",
+                owner_email=owner.get("email", "") if owner else "",
                 renter_name=renter.get("name", "Bérlő") if renter else "Érdeklődő Bérlő",
                 renter_phone=renter.get("phone", "") if renter else "",
-                renter_email=renter.get("email", "kulovanyi.kornel@gmail.com") if renter else "kulovanyi.kornel@gmail.com",
+                renter_email=renter.get("email", "") if renter else "",
                 item_title=item.get("title", "Eszköz"),
                 item_image=item.get("image_url", ""),
                 item_category=item.get("category", "Szerszám"),
-                item_location=item.get("location", "Ismeretlen"),
+                item_location=item.get("location", "Magyarország"),
                 start_date=rental.start_date,
                 end_date=rental.end_date or "",
                 units_count=rental.units_count,
                 price_unit=item.get("price_unit", "nap"),
                 total_price=rental.total_price,
                 deposit=rental.deposit,
-                note=rental.note or "",
-                force_test_email="kulovanyi.kornel@gmail.com"
+                note=rental.note or ""
             )
     except Exception as e:
-        print(f"[Email Notification Warning] Nem sikerült kiküldeni az e-mailt: {e}")
+        print(f"[Email Notification Warning] Nem sikerült kiküldeni az e-mailt a bérbeadónak: {e}")
 
-    return {"id": new_rental["id"], "message": "Bérlési kérelem sikeresen elküldve a bérbeadónak és visszaigazolva a bérlőnek!"}
+    return {"id": new_rental["id"], "message": "Bérlési kérelem sikeresen elküldve a bérbeadónak!"}
 
 # --- E-MAIL ÉRTESÍTÉSEK & MINTA ENDPOINT ---
 
@@ -796,6 +833,37 @@ def update_rental_status(rental_id: int, status_update: StatusUpdate):
     updated = firebase_db.update_rental_status(rental_id, status_update.status)
     if not updated:
         raise HTTPException(status_code=404, detail="Bérlés nem található!")
+
+    # Amikor a bérbeadó JÓVÁHAGYJA (approved / accepted), kiküldjük a bérlőnek az e-mailt!
+    if status_update.status in ['approved', 'accepted']:
+        try:
+            rental = firebase_db.get_rental_by_id(rental_id)
+            if rental:
+                item = firebase_db.get_item_by_id(rental.get("item_id"))
+                owner_uid = rental.get("owner_id") or (item.get("user_id") if item else None)
+                owner = firebase_db.get_user_by_id(owner_uid)
+                renter = firebase_db.get_user_by_id(rental.get("renter_id"))
+                email_service.send_rental_approval_to_renter(
+                    owner_name=owner.get("name", "Bérbeadó") if owner else "Bérbeadó",
+                    owner_phone=owner.get("phone", "") if owner else "",
+                    owner_email=owner.get("email", "") if owner else "",
+                    renter_name=renter.get("name", "Bérlő") if renter else "Bérlő",
+                    item_title=item.get("title", "Eszköz") if item else "Eszköz",
+                    item_image=item.get("image_url", "") if item else "",
+                    item_category=item.get("category", "Szerszám") if item else "Szerszám",
+                    item_location=item.get("location", "Magyarország") if item else "Magyarország",
+                    start_date=rental.get("start_date", ""),
+                    end_date=rental.get("end_date", ""),
+                    units_count=rental.get("units_count", 1),
+                    price_unit=item.get("price_unit", "nap") if item else "nap",
+                    total_price=rental.get("total_price", 0),
+                    deposit=rental.get("deposit", 0),
+                    note=rental.get("note", ""),
+                    renter_email=renter.get("email", "") if renter else ""
+                )
+        except Exception as e:
+            print(f"[Email Approval Warning] Nem sikerült kiküldeni a jóváhagyási e-mailt a bérlőnek: {e}")
+
     return {"message": f"Státusz sikeresen frissítve: {status_update.status}"}
 
 # --- ÉRTÉKELÉSEK (FIREBASE) ---

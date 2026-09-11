@@ -13,10 +13,10 @@ CREDENTIALS_PATHS = [
     os.environ.get('FIREBASE_CREDENTIALS_PATH', '')
 ]
 
-FIREBASE_PROJECT_ID = "kolcsonado"
-FIREBASE_API_KEY = "AIzaSyCZqV24fltN672ySbrw28dxEPGcNFi06zE"
-FIREBASE_AUTH_DOMAIN = "kolcsonado.firebaseapp.com"
-FIREBASE_STORAGE_BUCKET = "kolcsonado.firebasestorage.app"
+FIREBASE_PROJECT_ID = "kolcsonadlak-7212a"
+FIREBASE_API_KEY = "AIzaSyBS2jmQJxScHT8x_QPS_i8dVMqXCqI9bV0"
+FIREBASE_AUTH_DOMAIN = "kolcsonadlak-7212a.firebaseapp.com"
+FIREBASE_STORAGE_BUCKET = "kolcsonadlak-7212a.firebasestorage.app"
 
 _firebase_app = None
 _firestore_db = None

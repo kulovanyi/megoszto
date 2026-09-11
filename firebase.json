@@ -1,0 +1,52 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      "**/.*",
+      "**/node_modules/**",
+      "sybell_ftp_config.py",
+      "deploy_*.py",
+      "*.bat",
+      "test_app.py",
+      "__pycache__/**",
+      "venv/**",
+      "env/**",
+      "firebase-credentials.json"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow, noarchive, nosnippet"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(js|html|css|json)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/landing",
+        "destination": "/landing.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

@@ -5,4 +5,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 firebase-credentials.json
-
+.firebase_token.json
+sybell_ftp_config.py
+.env
+.env.*
+node_modules/
+functions/node_modules/
+.firebase/
+.vercel/
