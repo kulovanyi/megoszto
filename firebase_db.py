@@ -462,8 +462,8 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
 
 def create_user(user_data: Dict[str, Any]) -> Dict[str, Any]:
     users_dict = get_collection_docs('users')
-    existing_ids = [int(k) for k in users_dict.keys() if str(k).isdigit()]
-    new_id = (max(existing_ids) + 1) if existing_ids else int(time.time())
+    existing_ids = [int(k) for k in users_dict.keys() if str(k).isdigit() and int(k) < 900]
+    new_id = (max(existing_ids) + 1) if existing_ids else 7
 
     now_str = datetime.now().strftime('%Y-%m-%d')
     user = {

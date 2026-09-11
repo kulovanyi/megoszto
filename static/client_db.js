@@ -50,7 +50,7 @@
             "3": {
                 id: 3,
                 name: "isten",
-                email: "isten@kolcsonadlak.hu",
+                email: "isten@megoszto.hu",
                 password: "isten",
                 phone: "+36 30 111 2233",
                 city: "Budapest",
@@ -63,6 +63,64 @@
                 role: "user",
                 is_admin: false,
                 created_at: "2026-09-06"
+            },
+            "4": {
+                id: 4,
+                name: "Kornel",
+                email: "korimass@hotmail.com",
+                password: "password",
+                phone: "",
+                city: "Budapest",
+                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+                rating: 5.0,
+                reviews_count: 0,
+                subscription_plan: "free",
+                max_items: 1,
+                auth_provider: "local",
+                role: "user",
+                is_admin: false,
+                created_at: "2026-09-07"
+            },
+            "5": {
+                id: 5,
+                name: "Jakus Ádám",
+                email: "adamjakus@freemail.hu",
+                password: "password",
+                phone: "",
+                city: "Budapest",
+                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+                rating: 5.0,
+                reviews_count: 0,
+                subscription_plan: "free",
+                max_items: 1,
+                auth_provider: "local",
+                role: "user",
+                is_admin: false,
+                created_at: "2026-09-08"
+            },
+            "6": {
+                id: 6,
+                name: "Anett Kuloványi",
+                email: "kulianiandroid@gmail.com",
+                password: "password",
+                phone: "",
+                city: "Budapest",
+                avatar: "https://lh3.googleusercontent.com/a/ACg8ocKnIPPeUZBzDqb8V-cyUBfcJ-MzBYcnDbMXcnU48e2b4nl9N5o=s96-c",
+                rating: 5.0,
+                reviews_count: 0,
+                subscription_plan: "free",
+                max_items: 1,
+                auth_provider: "google",
+                role: "user",
+                is_admin: false,
+                created_at: "2026-09-08"
+            },
+            "999": {
+                id: 999,
+                subscription_plan: "starter_3",
+                max_items: 3,
+                featured_items_quota: 0,
+                created_at: "2026-09-06"
             }
         },
         items: {},
@@ -71,7 +129,7 @@
         conversations: {},
         messages: {},
         transactions: {},
-        meta: { user_seq: 3, item_seq: 0, rental_seq: 0, review_seq: 0, conv_seq: 0, msg_seq: 0 }
+        meta: { user_seq: 6, item_seq: 0, rental_seq: 0, review_seq: 0, conv_seq: 0, msg_seq: 0 }
     };
 
     const firebaseConfig = {
@@ -682,10 +740,14 @@
             let isNewUser = false;
             if (!user) {
                 isNewUser = true;
-                const newId = Date.now();
+                // Kövesse az ID-t szekvenciálisan (a 900 alatti normál azonosítók maximuma + 1)
+                const regularIds = Object.values(users)
+                    .map(u => Number(u.id))
+                    .filter(n => !isNaN(n) && n > 0 && n < 900);
+                const nextId = (regularIds.length > 0 ? Math.max(...regularIds) : 6) + 1;
                 const token = 'tok_' + Math.random().toString(36).substring(2, 10);
                 user = {
-                    id: newId,
+                    id: nextId,
                     name: body.name || email.split('@')[0],
                     email: email,
                     password: body.password || 'password',
@@ -702,7 +764,7 @@
                     email_verified: false,
                     verification_token: token
                 };
-                await setFirestoreDoc('users', newId, user);
+                await setFirestoreDoc('users', nextId, user);
 
                 // Megerősítő e-mail küldése az új felhasználónak
                 try {
