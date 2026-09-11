@@ -5715,6 +5715,7 @@ async function openUserProfileModal(userId) {
         const user = await res.json();
 
         const userName = user.name || 'Felhasználó';
+        const avatar = getUserAvatar(user, user.avatar);
         const regDate = user.created_at ? user.created_at.split('T')[0].split(' ')[0] : '2026-09-01';
         const items = user.active_items || [];
         const isMe = state.currentUser && Number(state.currentUser.id) === Number(user.id);
