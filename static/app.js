@@ -598,8 +598,8 @@ document.addEventListener('click', (e) => {
 function renderAuthUI() {
     const loggedInBox = document.getElementById('auth-logged-in');
     const loggedOutBox = document.getElementById('auth-logged-out');
-    const nameEl = document.getElementById('user-name-display');
-    const avatarEl = document.getElementById('user-avatar-display');
+    const nameEl = document.getElementById('current-user-name') || document.getElementById('user-name-display');
+    const avatarEl = document.getElementById('current-user-avatar') || document.getElementById('user-avatar-display');
     const dropdownAvatar = document.getElementById('dropdown-user-avatar');
     const dropdownName = document.getElementById('dropdown-user-name');
     const dropdownEmail = document.getElementById('dropdown-user-email');
