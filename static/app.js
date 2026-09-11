@@ -499,6 +499,41 @@ async function checkEmailVerification() {
     }
 }
 
+function generateLetterAvatar(name) {
+    if (typeof window !== 'undefined' && typeof window.generateLetterAvatar === 'function' && window.generateLetterAvatar !== generateLetterAvatar) {
+        return window.generateLetterAvatar(name);
+    }
+    const cleanName = (name || '').trim();
+    const initial = cleanName ? cleanName.charAt(0).toUpperCase() : 'K';
+    const palette = [
+        ['#059669', '#047857'],
+        ['#2563eb', '#1d4ed8'],
+        ['#7c3aed', '#6d28d9'],
+        ['#d97706', '#b45309'],
+        ['#db2777', '#be185d'],
+        ['#0d9488', '#0f766e'],
+        ['#e11d48', '#be123c'],
+        ['#4f46e5', '#3730a3']
+    ];
+    let hash = 0;
+    for (let i = 0; i < cleanName.length; i++) {
+        hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % palette.length;
+    const [c1, c2] = palette[colorIndex];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><defs><linearGradient id="avatarGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${c1}" /><stop offset="100%" stop-color="${c2}" /></linearGradient></defs><circle cx="64" cy="64" r="64" fill="url(#avatarGrad)" /><text x="50%" y="54%" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="64" font-weight="800" fill="#ffffff" dominant-baseline="middle" text-anchor="middle">${initial}</text></svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function getUserAvatar(userOrName, avatarUrl) {
+    const name = typeof userOrName === 'string' ? userOrName : (userOrName ? userOrName.name : '');
+    const url = avatarUrl || (typeof userOrName === 'object' && userOrName ? userOrName.avatar : '');
+    if (url && typeof url === 'string' && url.trim() && !url.includes('unsplash.com/photo-1535713875002-d1d0cf377fde') && !url.includes('dicebear.com/7.x/bottts')) {
+        return url;
+    }
+    return generateLetterAvatar(name);
+}
+
 async function initAuth() {
     let storedUserId = localStorage.getItem('kolcsonado_user_id');
     if (!storedUserId) {
@@ -543,7 +578,7 @@ document.addEventListener('click', (e) => {
     const menu = document.getElementById('user-dropdown-menu');
     const trigger = document.getElementById('user-menu-trigger');
     if (menu && !menu.classList.contains('hidden')) {
-        if (!menu.contains(e.target) && !trigger?.contains(e.target)) {
+        if (!menu.contains(e.target) && !trigger.contains(e.target)) {
             toggleUserDropdown(false);
         }
     }
@@ -552,13 +587,13 @@ document.addEventListener('click', (e) => {
 function renderAuthUI() {
     const loggedInBox = document.getElementById('auth-logged-in');
     const loggedOutBox = document.getElementById('auth-logged-out');
-    const nameEl = document.getElementById('current-user-name');
-    const avatarEl = document.getElementById('current-user-avatar');
+    const nameEl = document.getElementById('user-name-display');
+    const avatarEl = document.getElementById('user-avatar-display');
     const dropdownAvatar = document.getElementById('dropdown-user-avatar');
     const dropdownName = document.getElementById('dropdown-user-name');
     const dropdownEmail = document.getElementById('dropdown-user-email');
     const dropdownAdminBtn = document.getElementById('dropdown-admin-btn');
-    const adminBtn = document.getElementById('admin-nav-btn');
+    const adminBtn = document.getElementById('btn-nav-admin');
 
     if (state.currentUser) {
         if (loggedInBox) loggedInBox.classList.remove('hidden');
@@ -571,7 +606,7 @@ function renderAuthUI() {
             providerBadge = `<span title="Facebookkal bejelentkezve" class="inline-flex items-center text-[10px] ml-1 text-slate-400"><i class="fa-brands fa-facebook text-blue-600"></i></span>`;
         }
 
-        const avatarSrc = state.currentUser.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.currentUser.name}`;
+        const avatarSrc = getUserAvatar(state.currentUser);
 
         if (nameEl) nameEl.innerHTML = `${state.currentUser.name} ${providerBadge}`;
         if (avatarEl) avatarEl.src = avatarSrc;
@@ -1320,7 +1355,7 @@ function getCategoryIcon(cat) {
 function renderItemCard(item) {
     const ownerName = item.owner_name || 'Bérbeadó';
     const ownerFirstName = ownerName.split(' ')[0] || ownerName;
-    const ownerAvatar = item.owner_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ownerName)}`;
+    const ownerAvatar = getUserAvatar(ownerName, item.owner_avatar);
     const price = Number(item.price) || 0;
     const deposit = Number(item.deposit) || 0;
     const priceUnit = item.price_unit || 'nap';
@@ -2276,7 +2311,7 @@ function renderItemModalContent() {
                     <div class="flex items-center justify-between p-3 sm:p-3.5 bg-white rounded-2xl border border-slate-200/90 shadow-sm mb-4 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/40 transition-all group" onclick="openUserProfileModal(${item.user_id})" title="Kattints ${item.owner_name} teljes adatlapjának és értékeléseinek megtekintéséhez">
                         <div class="flex items-center gap-3">
                             <div class="relative shrink-0">
-                                <img src="${item.owner_avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(item.owner_name)}" class="w-11 h-11 rounded-full object-cover ring-2 ring-emerald-500/40 shadow-sm group-hover:scale-105 transition-transform">
+                                <img src="${getUserAvatar(item.owner_name, item.owner_avatar)}" class="w-11 h-11 rounded-full object-cover ring-2 ring-emerald-500/40 shadow-sm group-hover:scale-105 transition-transform">
                                 <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[8px] shadow">
                                     <i class="fa-solid fa-check"></i>
                                 </span>
@@ -3067,7 +3102,7 @@ function renderDashboardUI(myItems, incoming, outgoing) {
         <!-- MEGBÍZHATÓSÁGI ÉS PROFIL ÖSSZESÍTŐ SÁV -->
         <div class="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white p-6 sm:p-7 rounded-3xl shadow-xl mb-6 flex flex-col md:flex-row md:items-center justify-between gap-5 border border-slate-800">
             <div class="flex items-center gap-4">
-                <img src="${state.currentUser.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + state.currentUser.name}" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-emerald-400 shadow-md">
+                <img src="${getUserAvatar(state.currentUser)}" class="w-16 h-16 rounded-2xl object-cover ring-2 ring-emerald-400 shadow-md">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-xl font-black text-white tracking-tight">${state.currentUser.name}</h3>
@@ -3391,9 +3426,7 @@ function renderSingleRentalCard(r, role, isClosed = false) {
 
     const partnerId = isOwner ? (r.renter_id || 1) : (r.owner_id || 1);
     const partnerName = isOwner ? (r.renter_name || 'Bérlő') : (r.owner_name || 'Bérbeadó');
-    const partnerAvatar = isOwner 
-        ? (r.renter_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(partnerName)}`)
-        : (r.owner_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(partnerName)}`);
+    const partnerAvatar = getUserAvatar(partnerName, isOwner ? r.renter_avatar : r.owner_avatar);
     const partnerPhone = isOwner ? (r.renter_phone || '') : (r.owner_phone || '');
     const partnerCity = isOwner ? (r.renter_city || 'Magyarország') : (r.owner_city || r.item_location || 'Magyarország');
     const partnerRating = isOwner ? (r.renter_rating || 5.0) : (r.owner_rating || 5.0);
@@ -4432,7 +4465,7 @@ function renderAdminUsersRows(users) {
                     </thead>
                     <tbody class="divide-y divide-slate-100 font-medium">
                         ${users.map(u => {
-                            const avatar = u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.name || 'User')}`;
+                            const avatar = getUserAvatar(u);
                             const planId = u.subscription_plan || 'free';
                             const planName = planId === 'starter_3' ? 'Kertbarát (3)' : planId === 'pro_10' ? 'Ezermester (10)' : planId === 'unlimited' ? 'Profi (Végtelen)' : 'Ingyenes (1)';
                             const planBadgeClass = planId === 'unlimited' ? 'bg-amber-100 text-amber-900 border-amber-200' : planId === 'pro_10' ? 'bg-blue-100 text-blue-900 border-blue-200' : planId === 'starter_3' ? 'bg-emerald-100 text-emerald-900 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200';
@@ -5082,7 +5115,7 @@ function renderConversationsList(convs) {
     listContainer.innerHTML = convs.map(c => {
         const isActive = (c.id === state.activeConversationId && !state.draftPartner);
         const partner = c.partner || { name: 'Felhasználó' };
-        const avatar = partner.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${partner.name}`;
+        const avatar = getUserAvatar(partner);
         const unread = c.unread_count || 0;
         const timeStr = formatMessageTime(c.last_message_at);
 
@@ -5228,7 +5261,7 @@ function renderDraftChatPane() {
 
     const partner = state.draftPartner;
     const item = state.draftItem;
-    const avatar = partner.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${partner.name}`;
+    const avatar = getUserAvatar(partner);
 
     chatContainer.innerHTML = `
         <!-- Chat Fejléc -->
@@ -5315,7 +5348,7 @@ function renderActiveChatPane(autoFocus = true) {
 
     const conv = state.activeConversation;
     const partner = conv.partner || { name: 'Felhasználó' };
-    const avatar = partner.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${partner.name}`;
+    const avatar = getUserAvatar(partner);
     const isArchived = !!conv.is_archived;
 
     chatContainer.innerHTML = `
@@ -5413,8 +5446,8 @@ function renderMessagesStream(autoFocus = true) {
     }
 
     const partner = (state.activeConversation && state.activeConversation.partner) || { id: 1, name: 'Partner' };
-    const partnerAvatar = partner.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(partner.name)}`;
-    const myAvatar = (state.currentUser && state.currentUser.avatar) ? state.currentUser.avatar : 'https://api.dicebear.com/7.x/bottts/svg?seed=Me';
+    const partnerAvatar = getUserAvatar(partner);
+    const myAvatar = getUserAvatar(state.currentUser);
 
     streamContainer.innerHTML = msgs.map(m => {
         const isMine = !!m.is_mine;
@@ -5777,7 +5810,7 @@ async function openUserProfileModal(userId) {
                             <div class="p-3 bg-slate-50/80 hover:bg-slate-50 rounded-2xl border border-slate-200/70 space-y-1.5 transition-colors">
                                 <div class="flex items-center justify-between gap-2">
                                     <div class="flex items-center gap-2 cursor-pointer group" onclick="closeUserProfileModal(); openUserProfileModal(${rev.reviewer_id})">
-                                        <img src="${rev.reviewer_avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(rev.reviewer_name || 'User')}" class="w-6 h-6 rounded-full object-cover ring-1 ring-slate-200">
+                                        <img src="${getUserAvatar(rev.reviewer_name, rev.reviewer_avatar)}" class="w-6 h-6 rounded-full object-cover ring-1 ring-slate-200">
                                         <span class="text-xs font-bold text-slate-900 group-hover:text-emerald-700 group-hover:underline">${rev.reviewer_name || 'Értékelő partner'}</span>
                                     </div>
                                     <div class="flex items-center gap-1 text-amber-500 text-xs font-black">
@@ -5857,8 +5890,8 @@ function openUserSettingsModal() {
     const previewImg = document.getElementById('settings-avatar-preview');
     const dataInput = document.getElementById('settings-avatar-data');
 
-    const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.name || 'User')}`;
-    const currentAvatar = u.avatar || defaultAvatar;
+    const defaultAvatar = getUserAvatar(u.name || 'User');
+    const currentAvatar = getUserAvatar(u, u.avatar);
 
     if (nameInput) nameInput.value = u.name || '';
     if (emailInput) emailInput.value = u.email || '';
@@ -5918,7 +5951,7 @@ function handleSettingsAvatarSelect(event) {
 
 function resetSettingsAvatarToDefault() {
     const name = (document.getElementById('settings-name')?.value || state.currentUser?.name || 'User').trim();
-    const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name || 'User')}`;
+    const defaultAvatar = getUserAvatar(name || 'User');
     const preview = document.getElementById('settings-avatar-preview');
     const dataInput = document.getElementById('settings-avatar-data');
     if (preview) preview.src = defaultAvatar;
@@ -6430,7 +6463,7 @@ function renderFinancesUI(filteredRentals) {
                         const isOwner = Number(r.owner_id) === myId || (r.renter_id && Number(r.renter_id) !== myId);
                         const partnerId = isOwner ? (r.renter_id || 1) : (r.owner_id || 1);
                         const partnerName = isOwner ? (r.renter_name || 'Bérlő') : (r.owner_name || 'Bérbeadó');
-                        const partnerAvatar = isOwner ? (r.renter_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(partnerName)}`) : (r.owner_avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(partnerName)}`);
+                        const partnerAvatar = getUserAvatar(partnerName, isOwner ? r.renter_avatar : r.owner_avatar);
                         const partnerPhone = isOwner ? r.renter_phone : r.owner_phone;
 
                         const price = Number(r.total_price) || 0;

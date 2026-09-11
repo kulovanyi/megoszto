@@ -8,6 +8,31 @@
     ['kolcsonadlak_live_firestore_v3', 'kolcsonadlak_live_firestore_v2', 'megoszto_live_firestore_v2', 'megoszto_offline_db_v1'].forEach(k => {
         try { localStorage.removeItem(k); } catch (e) {}
     });
+
+    function generateLetterAvatar(name) {
+        const cleanName = (name || '').trim();
+        const initial = cleanName ? cleanName.charAt(0).toUpperCase() : 'K';
+        const palette = [
+            ['#059669', '#047857'], // emerald
+            ['#2563eb', '#1d4ed8'], // blue
+            ['#7c3aed', '#6d28d9'], // purple
+            ['#d97706', '#b45309'], // amber
+            ['#db2777', '#be185d'], // rose
+            ['#0d9488', '#0f766e'], // teal
+            ['#e11d48', '#be123c'], // red
+            ['#4f46e5', '#3730a3']  // indigo
+        ];
+        let hash = 0;
+        for (let i = 0; i < cleanName.length; i++) {
+            hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const colorIndex = Math.abs(hash) % palette.length;
+        const [c1, c2] = palette[colorIndex];
+        
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><defs><linearGradient id="avatarGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${c1}" /><stop offset="100%" stop-color="${c2}" /></linearGradient></defs><circle cx="64" cy="64" r="64" fill="url(#avatarGrad)" /><text x="50%" y="54%" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="64" font-weight="800" fill="#ffffff" dominant-baseline="middle" text-anchor="middle">${initial}</text></svg>`;
+        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    }
+    window.generateLetterAvatar = generateLetterAvatar;
     
     // Alapértelmezett üres struktúra - NEM tartalmaz teszt/minta adatokat
     const EMPTY_STORE = {
@@ -37,7 +62,7 @@
                 password: "password",
                 phone: "+36 30 765 4321",
                 city: "Budapest",
-                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+                avatar: generateLetterAvatar("Nagy Péter (Bérlő)"),
                 rating: 5.0,
                 reviews_count: 0,
                 subscription_plan: "free",
@@ -54,7 +79,7 @@
                 password: "isten",
                 phone: "+36 30 111 2233",
                 city: "Budapest",
-                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+                avatar: generateLetterAvatar("isten"),
                 rating: 5.0,
                 reviews_count: 0,
                 subscription_plan: "free",
@@ -71,7 +96,7 @@
                 password: "password",
                 phone: "",
                 city: "Budapest",
-                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+                avatar: generateLetterAvatar("Kornel"),
                 rating: 5.0,
                 reviews_count: 0,
                 subscription_plan: "free",
@@ -88,7 +113,7 @@
                 password: "password",
                 phone: "",
                 city: "Budapest",
-                avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+                avatar: generateLetterAvatar("Jakus Ádám"),
                 rating: 5.0,
                 reviews_count: 0,
                 subscription_plan: "free",
@@ -115,8 +140,8 @@
                 is_admin: false,
                 created_at: "2026-09-08"
             },
-            "999": {
-                id: 999,
+            "999999": {
+                id: 999999,
                 subscription_plan: "starter_3",
                 max_items: 3,
                 featured_items_quota: 0,
@@ -740,18 +765,20 @@
             let isNewUser = false;
             if (!user) {
                 isNewUser = true;
-                // Kövesse az ID-t szekvenciálisan (a 900 alatti normál azonosítók maximuma + 1)
+                // Kövesse az ID-t szekvenciálisan (a 900000 alatti normál azonosítók maximuma + 1)
                 const regularIds = Object.values(users)
                     .map(u => Number(u.id))
-                    .filter(n => !isNaN(n) && n > 0 && n < 900);
+                    .filter(n => !isNaN(n) && n > 0 && n < 900000);
                 const nextId = (regularIds.length > 0 ? Math.max(...regularIds) : 6) + 1;
                 const token = 'tok_' + Math.random().toString(36).substring(2, 10);
+                const userName = (body.name || email.split('@')[0]).trim();
+                const userAvatar = (body.avatar && body.avatar.trim()) ? body.avatar.trim() : generateLetterAvatar(userName);
                 user = {
                     id: nextId,
-                    name: body.name || email.split('@')[0],
+                    name: userName,
                     email: email,
                     password: body.password || 'password',
-                    avatar: body.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                    avatar: userAvatar,
                     subscription_plan: 'free',
                     max_items: 1,
                     active_items_count: 0,
@@ -833,13 +860,12 @@
                     id: rev.id,
                     reviewer_id: rev.reviewer_id,
                     reviewer_name: reviewer.name || rev.reviewer_name || 'Felhasználó',
-                    reviewer_avatar: reviewer.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(reviewer.name || rev.reviewer_name || 'User')}`,
+                    reviewer_avatar: reviewer.avatar || generateLetterAvatar(reviewer.name || rev.reviewer_name || 'Felhasználó'),
                     reviewer_city: reviewer.city || '',
                     rating: Number(rev.rating) || 5,
                     comment: rev.comment || '',
-                    item_id: rev.item_id,
-                    item_title: rentedItem.title || rev.item_title || '',
-                    created_at: rev.created_at || new Date().toISOString()
+                    created_at: rev.created_at,
+                    item_title: rentedItem.title || 'Kölcsönzött eszköz'
                 };
             }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -849,7 +875,7 @@
                 email: rawUser.email || '',
                 phone: rawUser.phone || '',
                 city: rawUser.city || 'Magyarország',
-                avatar: rawUser.avatar || normalizeImgUrl(rawUser.avatar) || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(rawUser.name || 'User')}`,
+                avatar: (rawUser.avatar && !rawUser.avatar.includes('unsplash') && !rawUser.avatar.includes('dicebear')) ? normalizeImgUrl(rawUser.avatar) : generateLetterAvatar(rawUser.name || 'Felhasználó'),
                 created_at: rawUser.created_at ? String(rawUser.created_at).split('T')[0].split(' ')[0] : new Date().toISOString().split('T')[0],
                 rating: avgRating,
                 reviews_count: reviewsReceived.length || Number(rawUser.reviews_count) || 0,
