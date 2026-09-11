@@ -462,7 +462,7 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
 
 def create_user(user_data: Dict[str, Any]) -> Dict[str, Any]:
     users_dict = get_collection_docs('users')
-    existing_ids = [int(k) for k in users_dict.keys() if str(k).isdigit() and int(k) < 900]
+    existing_ids = [int(k) for k in users_dict.keys() if str(k).isdigit() and int(k) < 900000]
     new_id = (max(existing_ids) + 1) if existing_ids else 7
 
     now_str = datetime.now().strftime('%Y-%m-%d')
@@ -479,7 +479,8 @@ def create_user(user_data: Dict[str, Any]) -> Dict[str, Any]:
         'subscription_plan': user_data.get('subscription_plan', 'free'),
         'max_items': user_data.get('max_items', 1),
         'auth_provider': user_data.get('auth_provider', 'local'),
-        'created_at': now_str
+        'created_at': now_str,
+        'invited_by': user_data.get('invited_by')
     }
     
     fs = get_firestore_client()

@@ -324,11 +324,20 @@
         });
     }
 
+    function calculateUserMaxItems(user, planId, level) {
+        const pId = planId || (user ? user.subscription_plan : 'free') || 'free';
+        if (pId === 'unlimited') return 9999;
+        const lvl = Number(level || (user ? user.level : 1) || 1);
+        const levelBonus = Math.max(0, lvl - 1);
+        const planExtra = (pId === 'starter_3' ? 3 : pId === 'pro_10' ? 10 : 0);
+        return 1 + levelBonus + planExtra;
+    }
+
     const PLANS = [
-        { id: 'free', name: 'Ingyenes', price: 0, max_items: 1, featured_items: 0, badge: 'Ingyenes', features: ['1 termék feltöltés', '0 db kiemelt termék'] },
-        { id: 'starter_3', name: 'Kezdő', price: 1490, max_items: 3, featured_items: 0, badge: '1 490 Ft', features: ['3 termék feltöltés', '0 db kiemelt termék'] },
-        { id: 'pro_10', name: 'Haladó', price: 4490, max_items: 10, featured_items: 1, badge: '4 490 Ft', features: ['10 termék feltöltés', '1 db kiemelt termék'] },
-        { id: 'unlimited', name: 'Korlátlan', price: 14990, max_items: 9999, featured_items: 3, badge: '14 990 Ft', features: ['Bármennyi termék feltöltés', '3 db kiemelt termék'] }
+        { id: 'free', name: 'Ingyenes', price: 0, extra_items: 0, max_items: 1, featured_items: 0, badge: 'Ingyenes', features: ['Alap hirdetéshely (1 db)', '0 db kiemelt termék'] },
+        { id: 'starter_3', name: 'Kezdő', price: 1490, extra_items: 3, max_items: 3, featured_items: 0, badge: '1 490 Ft', features: ['+3 plusz hirdetéshely a meglévőkhöz', '0 db kiemelt termék'] },
+        { id: 'pro_10', name: 'Haladó', price: 4490, extra_items: 10, max_items: 10, featured_items: 1, badge: '4 490 Ft', features: ['+10 plusz hirdetéshely a meglévőkhöz', '1 db kiemelt termék'] },
+        { id: 'unlimited', name: 'Korlátlan', price: 14990, extra_items: 9999, max_items: 9999, featured_items: 3, badge: '14 990 Ft', features: ['Korlátlan hirdetés feltöltés', '3 db kiemelt termék'] }
     ];
 
     const TARGET_EMAIL = 'kulovanyi.kornel@gmail.com';
@@ -687,6 +696,7 @@
             if (!user) {
                 return makeResponse({ detail: 'Felhasználó nem található' }, 404);
             }
+            user.max_items = calculateUserMaxItems(user);
             return makeResponse(user);
         }
         if (path.includes('/api/auth/login')) {
@@ -714,6 +724,7 @@
             if (userPass && password && userPass !== password && !['password', '123456'].includes(password)) {
                 return makeResponse({ detail: 'Helytelen jelszó!' }, 401);
             }
+            user.max_items = calculateUserMaxItems(user);
             return makeResponse({ message: 'Sikeres bejelentkezés!', user: user });
         }
         if (path.includes('/api/auth/quick-login')) {
@@ -734,6 +745,7 @@
                     user = users['1'] || Object.values(users)[0] || EMPTY_STORE.users['1'];
                 }
             }
+            if (user) user.max_items = calculateUserMaxItems(user);
             return makeResponse({ message: `Sikeres gyors belépés: ${user ? user.name : 'Felhasználó'}!`, user: user });
         }
         // 4.A2 E-MAIL MEGERŐSÍTÉS VÉGPONT
@@ -749,6 +761,7 @@
                     email_verified: true,
                     verified_at: user.verified_at
                 });
+                user.max_items = calculateUserMaxItems(user);
                 return makeResponse({ 
                     success: true, 
                     message: 'E-mail cím sikeresen megerősítve!', 
@@ -773,6 +786,15 @@
                 const token = 'tok_' + Math.random().toString(36).substring(2, 10);
                 const userName = (body.name || email.split('@')[0]).trim();
                 const userAvatar = (body.avatar && body.avatar.trim()) ? body.avatar.trim() : generateLetterAvatar(userName);
+
+                let inviterId = null;
+                if (body.invited_by) {
+                    const invNum = Number(body.invited_by);
+                    if (!isNaN(invNum) && invNum > 0 && users[String(invNum)]) {
+                        inviterId = invNum;
+                    }
+                }
+
                 user = {
                     id: nextId,
                     name: userName,
@@ -789,7 +811,8 @@
                     auth_provider: body.provider || (path.includes('social') ? 'google' : 'local'),
                     created_at: new Date().toISOString().split('T')[0],
                     email_verified: false,
-                    verification_token: token
+                    verification_token: token,
+                    invited_by: inviterId
                 };
                 await setFirestoreDoc('users', nextId, user);
 
@@ -800,6 +823,7 @@
                     console.warn('Hiba a regisztrációs e-mail küldésekor:', regMailErr);
                 }
             }
+            user.max_items = calculateUserMaxItems(user);
             return makeResponse({ 
                 message: isNewUser ? 'Sikeres regisztráció! Elküldtük a megerősítő e-mailt.' : 'Sikeres bejelentkezés!', 
                 user: user,
@@ -1593,11 +1617,43 @@
             const reviewsReceived = Object.values(reviewsDict || {})
                 .filter(rev => Number(rev.target_user_id) === uid);
 
+            // Meghívottak és aktív hirdetők vizsgálata (50 pont / aktív hirdető meghívott)
+            const allUsersList = Object.values(usersDict || {});
+            const myReferrals = allUsersList.filter(u => Number(u.invited_by) === uid);
+            const referralsTotal = myReferrals.length;
+            const activeReferrals = myReferrals.filter(u => {
+                const uItems = Object.values(itemsDict || {}).filter(it => Number(it.user_id) === Number(u.id));
+                return uItems.length > 0;
+            });
+            const referralsActive = activeReferrals.length;
+            const referralsPoints = referralsActive * 50;
+
             const bonusPoints = Number(user.bonus_points || user.points || 0);
-            const totalPoints = completedRentalsAsRenter.length + completedRentalsAsOwner.length + reviewsGiven.length + reviewsReceived.length + bonusPoints;
+            const totalPoints = completedRentalsAsRenter.length + completedRentalsAsOwner.length + reviewsGiven.length + reviewsReceived.length + bonusPoints + referralsPoints;
             const level = Math.floor(totalPoints / 300) + 1;
             const levelPoints = totalPoints % 300;
             const pointsToNext = 300 - levelPoints;
+
+            // Szintek alapján számított hirdetési helyek
+            const maxItems = calculateUserMaxItems(user, user.subscription_plan, level);
+            if (user.max_items !== maxItems || user.level !== level || user.points !== totalPoints) {
+                await updateFirestoreDoc('users', uid, {
+                    max_items: maxItems,
+                    level: level,
+                    points: totalPoints
+                });
+                user.max_items = maxItems;
+                user.level = level;
+                user.points = totalPoints;
+            }
+
+            const referralBadges = [
+                { id: 'ref_1', name: 'Kezdő Ajánló', req: 1, unlocked: referralsTotal >= 1, icon: 'fa-seedling', desc: 'Legalább 1 meghívott ismerős' },
+                { id: 'ref_3', name: 'Közösségépítő', req: 3, unlocked: referralsTotal >= 3, icon: 'fa-users', desc: 'Legalább 3 meghívott ismerős' },
+                { id: 'ref_5', name: 'Kölcsönző Nagykövet', req: 5, unlocked: referralsTotal >= 5, icon: 'fa-medal', desc: 'Legalább 5 meghívott ismerős' },
+                { id: 'ref_10', name: 'Városi Legenda', req: 10, unlocked: referralsTotal >= 10, icon: 'fa-crown', desc: 'Legalább 10 meghívott ismerős' }
+            ];
+
             const totalBoostsEarned = Math.floor(totalPoints / 300);
             const boostsUsed = Number(user.boosts_used || 0);
             const boostsAvailable = Math.max(0, totalBoostsEarned - boostsUsed);
@@ -1617,6 +1673,10 @@
                 level_points: levelPoints,
                 points_to_next: pointsToNext,
                 progress_percent: Math.min(100, Math.round((levelPoints / 300) * 100)),
+                max_items: maxItems,
+                base_items: 1,
+                level_bonus_items: Math.max(0, level - 1),
+                plan_extra_items: (user.subscription_plan === 'starter_3' ? 3 : user.subscription_plan === 'pro_10' ? 10 : user.subscription_plan === 'unlimited' ? 9999 : 0),
                 total_boosts_earned: totalBoostsEarned,
                 boosts_used: boostsUsed,
                 boosts_available: boostsAvailable,
@@ -1625,8 +1685,12 @@
                     rentals_as_owner: completedRentalsAsOwner.length,
                     reviews_given: reviewsGiven.length,
                     reviews_received: reviewsReceived.length,
+                    referrals_total: referralsTotal,
+                    referrals_active: referralsActive,
+                    referrals_points: referralsPoints,
                     bonus_points: bonusPoints
                 },
+                referral_badges: referralBadges,
                 user_items: userItems
             });
         }
@@ -1725,19 +1789,21 @@
                 }
             }
 
+            const newMaxItems = calculateUserMaxItems(currentUser, plan.id, currentUser.level || 1);
             const exp = new Date();
             exp.setDate(exp.getDate() + 30);
             const updatedData = {
                 subscription_plan: plan.id,
-                max_items: plan.max_items,
+                max_items: newMaxItems,
                 featured_items_quota: plan.featured_items || 0,
                 pending_downgrade_plan: null,
                 pending_downgrade_at: null,
                 subscription_expires_at: plan.id === 'free' ? null : exp.toISOString()
             };
             await updateFirestoreDoc('users', uid, updatedData);
+            const extraDesc = plan.id === 'unlimited' ? 'Végtelen hirdetési hely' : `+${plan.extra_items || (plan.id === 'starter_3' ? 3 : 10)} plusz hely, összesen ${newMaxItems} db`;
             return makeResponse({
-                message: `Sikeres csomagváltás! Új csomagod: ${plan.name} (Maximum ${plan.max_items < 9000 ? plan.max_items + ' db' : 'Végtelen'} hirdetés)`,
+                message: `Sikeres csomagváltás! Új csomagod: ${plan.name} (${extraDesc})`,
                 user: { ...currentUser, ...updatedData },
                 plan: plan,
                 pending_downgrade: false
@@ -1751,11 +1817,14 @@
         }
         if (path.includes('/api/stripe/confirm-payment')) {
             const plan = PLANS.find(p => p.id === body.plan_id) || PLANS[1];
+            const usersDict = await getFirestoreCollection('users');
+            const currentUser = usersDict[String(body.user_id)] || {};
+            const newMaxItems = calculateUserMaxItems(currentUser, plan.id, currentUser.level || 1);
             const exp = new Date();
             exp.setDate(exp.getDate() + 30);
             await updateFirestoreDoc('users', body.user_id, {
                 subscription_plan: plan.id,
-                max_items: plan.max_items,
+                max_items: newMaxItems,
                 featured_items_quota: plan.featured_items || 0,
                 subscription_started_at: new Date().toISOString(),
                 subscription_expires_at: exp.toISOString(),

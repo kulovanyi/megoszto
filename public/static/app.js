@@ -37,37 +37,41 @@ const DEFAULT_PLANS = [
         id: "free",
         name: "Ingyenes",
         price: 0,
+        extra_items: 0,
         max_items: 1,
         featured_items: 0,
         badge: "Ingyenes",
-        features: ["1 termék feltöltés", "0 db kiemelt termék"]
+        features: ["Alap hirdetési keret (1 db)", "0 db kiemelt termék"]
     },
     {
         id: "starter_3",
         name: "Kezdő",
         price: 1490,
+        extra_items: 3,
         max_items: 3,
         featured_items: 0,
         badge: "1 490 Ft",
-        features: ["3 termék feltöltés", "0 db kiemelt termék"]
+        features: ["+3 plusz hirdetéshely a meglévőkhöz", "0 db kiemelt termék"]
     },
     {
         id: "pro_10",
         name: "Haladó",
         price: 4490,
+        extra_items: 10,
         max_items: 10,
         featured_items: 1,
         badge: "4 490 Ft",
-        features: ["10 termék feltöltés", "1 db kiemelt termék"]
+        features: ["+10 plusz hirdetéshely a meglévőkhöz", "1 db kiemelt termék"]
     },
     {
         id: "unlimited",
         name: "Korlátlan",
         price: 14990,
+        extra_items: 9999,
         max_items: 9999,
         featured_items: 3,
         badge: "14 990 Ft",
-        features: ["Bármennyi termék feltöltés", "3 db kiemelt termék"]
+        features: ["Korlátlan hirdetés feltöltés", "3 db kiemelt termék"]
     }
 ];
 
@@ -475,6 +479,13 @@ async function checkEmailVerification() {
         const params = new URLSearchParams(window.location.search);
         const verifyUser = params.get('verify_user') || params.get('verify_email');
         const token = params.get('token');
+        const refParam = params.get('ref') || params.get('invited_by');
+        if (refParam) {
+            localStorage.setItem('kolcsonado_referral_id', refParam.trim());
+            console.log('🎁 [Referral] Meghívó kód elmentve:', refParam.trim());
+            showToast('🎁 Egy ismerősöd meghívójával érkeztél! Regisztrálj a csatlakozáshoz.', 'info', 6000);
+        }
+
         if (verifyUser) {
             console.log('🔍 [Auth Verify] E-mail megerősítés folyamatban...', verifyUser);
             const res = await fetch(`/api/auth/verify?user_id=${encodeURIComponent(verifyUser)}&token=${encodeURIComponent(token || '')}`);
@@ -690,6 +701,18 @@ function switchAuthTab(tab) {
         registerForm.classList.remove('hidden');
         tabRegister.className = 'flex-1 py-2 text-sm font-extrabold text-emerald-600 border-b-2 border-emerald-600 transition-colors';
         tabLogin.className = 'flex-1 py-2 text-sm font-extrabold text-slate-400 hover:text-slate-700 transition-colors';
+
+        const refId = localStorage.getItem('kolcsonado_referral_id');
+        let refBanner = document.getElementById('reg-referral-banner');
+        if (refId && registerForm) {
+            if (!refBanner) {
+                refBanner = document.createElement('div');
+                refBanner.id = 'reg-referral-banner';
+                refBanner.className = 'mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-semibold flex items-center gap-2';
+                refBanner.innerHTML = `<i class="fa-solid fa-gift text-indigo-600 text-base"></i><span>Egy ismerősöd meghívójával érkeztél! Regisztrációddal csatlakozol a közösséghez.</span>`;
+                registerForm.prepend(refBanner);
+            }
+        }
     }
 }
 
@@ -733,12 +756,13 @@ async function handleRegisterSubmit(e) {
     const password = document.getElementById('reg-password').value;
     const phone = document.getElementById('reg-phone').value;
     const city = document.getElementById('reg-city').value;
+    const invited_by = localStorage.getItem('kolcsonado_referral_id') || null;
 
     try {
         const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password, phone, city })
+            body: JSON.stringify({ name, email, password, phone, city, invited_by })
         });
 
         if (!res.ok) {
@@ -749,6 +773,9 @@ async function handleRegisterSubmit(e) {
         const data = await res.json();
         state.currentUser = data.user;
         localStorage.setItem('kolcsonado_user_id', data.user.id);
+        if (invited_by) {
+            localStorage.removeItem('kolcsonado_referral_id');
+        }
 
         closeAuthModal();
         renderAuthUI();
@@ -1606,7 +1633,10 @@ function renderPlansUI() {
                     ? 'border-2 border-purple-400 bg-white'
                     : 'border border-slate-200 bg-white';
 
-        const maxItemsStr = plan.max_items >= 9000 ? 'Bármennyi termék' : `${plan.max_items} termék feltöltés`;
+        const extraNum = plan.extra_items !== undefined ? plan.extra_items : (plan.id === 'starter_3' ? 3 : plan.id === 'pro_10' ? 10 : plan.id === 'unlimited' ? 9999 : 0);
+        const maxItemsStr = plan.id === 'unlimited' ? 'Korlátlan termék' : extraNum > 0 ? `+${extraNum} plusz termékhely` : 'Alap keret (1 db)';
+        const baseLevelItems = 1 + Math.max(0, ((state.currentUser?.level || 1) - 1));
+        const totalWithPlan = plan.id === 'unlimited' ? 'Korlátlan' : `${baseLevelItems + extraNum} db`;
         const featuredStr = plan.featured_items > 0 ? `${plan.featured_items} db termék kiemelt` : `0 db kiemelt termék`;
 
         return `
@@ -1635,10 +1665,13 @@ function renderPlansUI() {
                     </div>
 
                     <!-- SOR 3: Termék feltöltési limit -->
-                    <div class="h-14 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center px-3 text-center">
+                    <div class="h-14 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center px-2 text-center">
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hirdetés feltöltés</span>
-                        <span class="text-sm font-black ${plan.max_items >= 9000 ? 'text-purple-700' : 'text-slate-800'}">
+                        <span class="text-xs font-black ${plan.id === 'unlimited' ? 'text-purple-700' : 'text-slate-800'}">
                             ${maxItemsStr}
+                        </span>
+                        <span class="text-[9px] text-emerald-700 font-bold leading-tight">
+                            (Szinteddel: ${totalWithPlan})
                         </span>
                     </div>
 
@@ -6740,6 +6773,37 @@ async function loadAchievementsData() {
     }
 }
 
+function copyReferralLink() {
+    if (!state.currentUser) return;
+    const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+    const url = `${origin}/?ref=${state.currentUser.id}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('📋 Egyedi meghívó linked sikeresen vágólapra másolva!', 'success');
+        }).catch(() => {
+            fallbackCopy(url);
+        });
+    } else {
+        fallbackCopy(url);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        showToast('📋 Egyedi meghívó linked sikeresen vágólapra másolva!', 'success');
+    } catch (e) {
+        showToast('Kérlek másold ki manuálisan a linket!', 'info');
+    }
+    document.body.removeChild(ta);
+}
+
 function renderAchievementsUI(data) {
     const container = document.getElementById('achievements-content');
     if (!container) return;
@@ -6749,7 +6813,8 @@ function renderAchievementsUI(data) {
     const nextLevelInfo = getLevelInfo(nextLevel);
 
     const userItems = data.user_items || [];
-    const nonFeaturedItems = userItems.filter(it => !it.is_featured);
+    const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+    const referralUrl = `${origin}/?ref=${state.currentUser ? state.currentUser.id : 1}`;
 
     container.innerHTML = `
         <!-- 1. FŐ HERO SZINT KÁRTYA -->
@@ -6780,12 +6845,12 @@ function renderAchievementsUI(data) {
                             ${levelInfo.title}
                         </h3>
                         <p class="text-xs text-slate-300 mt-1 max-w-md">
-                            ${levelInfo.desc} • Végtelen pontgyűjtés és automatikus szintlépés.
+                            ${levelInfo.desc} • Végtelen fejlődés: minden 300 pont után +1 hirdetési hely!
                         </p>
                     </div>
                 </div>
 
-                <!-- Jobb oldal: Pontszám és Jutalmak összefoglaló -->
+                <!-- Jobb oldal: Pontszám és Hirdetéshelyek összefoglaló -->
                 <div class="flex items-center gap-3 sm:gap-4 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 shrink-0">
                     <div class="text-right pr-3 border-r border-white/10">
                         <span class="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider block">Összes pontod</span>
@@ -6793,11 +6858,11 @@ function renderAchievementsUI(data) {
                         <span class="text-[10px] text-slate-300 font-bold block">pont</span>
                     </div>
                     <div>
-                        <span class="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider block">Ingyen Kiemelés</span>
-                        <span class="text-2xl sm:text-3xl font-black ${data.boosts_available > 0 ? 'text-emerald-400 animate-pulse' : 'text-slate-300'}">
-                            ${data.boosts_available}
+                        <span class="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider block">Hirdetési Helyeid</span>
+                        <span class="text-2xl sm:text-3xl font-black text-emerald-400">
+                            ${data.max_items >= 9000 ? '∞' : data.max_items}
                         </span>
-                        <span class="text-[10px] text-slate-300 font-bold block">db elérhető</span>
+                        <span class="text-[10px] text-slate-300 font-bold block">db termék (${userItems.length} aktív)</span>
                     </div>
                 </div>
             </div>
@@ -6821,7 +6886,7 @@ function renderAchievementsUI(data) {
                 <div class="flex items-center justify-between mt-2.5 text-[11px] text-slate-400">
                     <span>${data.level}. Szint (${(data.level - 1) * 300} pt)</span>
                     <span class="text-amber-300 font-bold">
-                        ⚡ Még <strong class="text-white">${data.points_to_next} pont</strong> a következő szinthez és az újabb ingyenes kiemeléshez!
+                        ⚡ Még <strong class="text-white">${data.points_to_next} pont</strong> a következő szinthez és az újabb +1 hirdetési helyhez!
                     </span>
                     <span>${nextLevel}. Szint (${data.level * 300} pt)</span>
                 </div>
@@ -6829,134 +6894,117 @@ function renderAchievementsUI(data) {
         </div>
 
 
-        <!-- 2. INGYENES KIEMELÉS BEVÁLTÓ KÖZPONT -->
-        <div class="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-lg shrink-0">
-                        <i class="fa-solid fa-bolt"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-base font-black text-slate-900 leading-tight">Ingyenes Hirdetéskiemelés Beváltása</h4>
-                        <p class="text-xs text-slate-500">Váltsd be a szintlépésért járó ingyenes kiemelést bármelyik aktív hirdetésedre!</p>
-                    </div>
-                </div>
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl ${data.boosts_available > 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-black' : 'bg-slate-50 text-slate-600 border border-slate-200 font-bold'} text-xs shrink-0 self-start sm:self-auto">
-                    <i class="fa-solid fa-ticket ${data.boosts_available > 0 ? 'text-emerald-600' : 'text-slate-400'}"></i>
-                    <span>Elérhető: <strong>${data.boosts_available} db</strong> (Felhasznált: ${data.boosts_used} db)</span>
-                </div>
-            </div>
+        <!-- 2. MEGHÍVÓ KÖZPONT (REFERRAL HUB) -->
+        <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-lg border border-indigo-500/30 relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-            ${data.boosts_available > 0 ? `
-                <div class="p-4 bg-gradient-to-r from-amber-50/80 via-emerald-50/40 to-amber-50/80 rounded-2xl border border-amber-200/80 space-y-4">
-                    <div class="flex items-center gap-2 text-xs font-black text-amber-900">
-                        <i class="fa-solid fa-gift text-amber-600 text-sm"></i>
-                        <span>Van ${data.boosts_available} db beváltatlan ingyenes kiemelésed! Válaszd ki az eszközt:</span>
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="max-w-xl">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold border border-indigo-400/30 mb-2.5">
+                        <i class="fa-solid fa-gift text-indigo-400"></i>
+                        <span>Közösségi Meghívó Program</span>
                     </div>
-
-                    ${userItems.length === 0 ? `
-                        <div class="text-center py-4 bg-white rounded-xl border border-amber-200 p-4">
-                            <p class="text-xs font-bold text-slate-600 mb-2">Még nincs feltöltött hirdetésed, amire be tudnád váltani.</p>
-                            <button onclick="openNewItemModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow transition-all inline-flex items-center gap-1.5">
-                                <i class="fa-solid fa-plus"></i> Új eszköz hirdetése most
-                            </button>
-                        </div>
-                    ` : `
-                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                            <div class="flex-1">
-                                <select id="redeem-boost-item-select" class="w-full px-4 py-3 text-xs font-bold bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-xs">
-                                    ${userItems.map(it => `
-                                        <option value="${it.id}" ${it.is_featured ? 'disabled' : ''}>
-                                            ${it.title} — ${Number(it.price).toLocaleString('hu-HU')} Ft/${it.price_unit || 'nap'} ${it.is_featured ? '⭐ (MÁR KIEMELT)' : '🟢 (Normál hirdetés)'}
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            <button onclick="redeemFreeBoost()" id="redeem-boost-submit-btn" class="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
-                                <i class="fa-solid fa-bolt text-yellow-200"></i>
-                                <span>Kiemelés Beváltása Most</span>
-                            </button>
-                        </div>
-                    `}
+                    <h4 class="text-lg sm:text-xl font-black text-white leading-tight">
+                        Hívd meg barátaidat & Szerezz +50 Pontot!
+                    </h4>
+                    <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                        Minden olyan meghívott ismerősöd után, aki <strong>felad legalább 1 hirdetést</strong>, azonnal <strong>+50 pontot kapsz</strong>! 6 aktív barát = 300 pont = azonnali szintlépés és <strong>+1 permanens hirdetési hely</strong>!
+                    </p>
                 </div>
-            ` : `
-                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div class="flex items-center gap-2.5 text-slate-600">
-                        <i class="fa-solid fa-circle-info text-amber-500 text-sm"></i>
-                        <span>Jelenleg nincs beváltatlan ingyenes kiemelésed. Gyűjts még <strong>${data.points_to_next} pontot</strong> a következő szinthez és az újabb ajándék kiemeléshez!</span>
+
+                <div class="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/15">
+                    <div class="px-3 py-2 bg-slate-950/70 rounded-xl border border-indigo-400/30 font-mono text-xs text-indigo-200 select-all overflow-hidden text-ellipsis max-w-xs sm:max-w-sm">
+                        ${referralUrl}
                     </div>
-                    <button onclick="switchTab('browse')" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-xl border border-slate-200 transition-colors shrink-0 self-start sm:self-auto">
-                        Böngészés & Bérlés
+                    <button onclick="copyReferralLink()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 whitespace-nowrap active:scale-95">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>Link másolása</span>
                     </button>
                 </div>
-            `}
+            </div>
         </div>
 
 
-        <!-- 3. PONTGYŰJTÉSI ESEMÉNYEK & AKTIVITÁSI KPI KÁRTYÁK -->
+        <!-- 3. PONTGYŰJTÉSI ESEMÉNYEK & AKTIVITÁSI KPI KÁRTYÁK (5 KÁRTYA) -->
         <div>
             <div class="flex items-center justify-between mb-3">
                 <h4 class="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                     <i class="fa-solid fa-list-check text-emerald-600"></i>
                     Aktivitások & Pontszerzési Statisztikáid
                 </h4>
-                <span class="text-xs text-slate-500 font-bold">Minden sikerért +1 pont jár</span>
+                <span class="text-xs text-slate-500 font-bold">Mérföldkövek & pontok</span>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
                 <!-- 1. Sikeres Bérlés -->
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-xl shrink-0">
+                <div class="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-lg shrink-0">
                         <i class="fa-solid fa-handshake"></i>
                     </div>
                     <div>
-                        <span class="text-[11px] font-bold text-slate-400 block uppercase">Sikeres Bérlés</span>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase">Sikeres Bérlés</span>
                         <div class="flex items-baseline gap-1.5 mt-0.5">
-                            <span class="text-xl font-black text-slate-900">${data.stats.rentals_as_renter} db</span>
-                            <span class="text-xs font-black text-blue-600">+${data.stats.rentals_as_renter} pt</span>
+                            <span class="text-lg font-black text-slate-900">${data.stats.rentals_as_renter} db</span>
+                            <span class="text-[11px] font-black text-blue-600">+${data.stats.rentals_as_renter} pt</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 2. Sikeres Bérbeadás -->
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                <div class="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center text-lg shrink-0">
                         <i class="fa-solid fa-toolbox"></i>
                     </div>
                     <div>
-                        <span class="text-[11px] font-bold text-slate-400 block uppercase">Sikeres Bérbeadás</span>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase">Bérbeadás</span>
                         <div class="flex items-baseline gap-1.5 mt-0.5">
-                            <span class="text-xl font-black text-slate-900">${data.stats.rentals_as_owner} db</span>
-                            <span class="text-xs font-black text-emerald-600">+${data.stats.rentals_as_owner} pt</span>
+                            <span class="text-lg font-black text-slate-900">${data.stats.rentals_as_owner} db</span>
+                            <span class="text-[11px] font-black text-emerald-600">+${data.stats.rentals_as_owner} pt</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 3. Adott Értékelések -->
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center text-xl shrink-0">
+                <div class="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center text-lg shrink-0">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </div>
                     <div>
-                        <span class="text-[11px] font-bold text-slate-400 block uppercase">Adott Értékelések</span>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase">Adott Értékelés</span>
                         <div class="flex items-baseline gap-1.5 mt-0.5">
-                            <span class="text-xl font-black text-slate-900">${data.stats.reviews_given} db</span>
-                            <span class="text-xs font-black text-purple-600">+${data.stats.reviews_given} pt</span>
+                            <span class="text-lg font-black text-slate-900">${data.stats.reviews_given} db</span>
+                            <span class="text-[11px] font-black text-purple-600">+${data.stats.reviews_given} pt</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 4. Kapott Értékelések -->
-                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-xl shrink-0">
+                <div class="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-lg shrink-0">
                         <i class="fa-solid fa-star"></i>
                     </div>
                     <div>
-                        <span class="text-[11px] font-bold text-slate-400 block uppercase">Kapott Értékelések</span>
+                        <span class="text-[10px] font-bold text-slate-400 block uppercase">Kapott Értékelés</span>
                         <div class="flex items-baseline gap-1.5 mt-0.5">
-                            <span class="text-xl font-black text-slate-900">${data.stats.reviews_received} db</span>
-                            <span class="text-xs font-black text-amber-600">+${data.stats.reviews_received} pt</span>
+                            <span class="text-lg font-black text-slate-900">${data.stats.reviews_received} db</span>
+                            <span class="text-[11px] font-black text-amber-600">+${data.stats.reviews_received} pt</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 5. Meghívott Ismerősök (ÚJ!) -->
+                <div class="bg-white p-4.5 rounded-2xl border border-indigo-200/90 shadow-xs flex items-center gap-3.5 ring-1 ring-indigo-500/10">
+                    <div class="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center text-lg shrink-0">
+                        <i class="fa-solid fa-user-plus"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-indigo-900 block uppercase">Meghívottak</span>
+                        <div class="flex items-baseline gap-1 mt-0.5">
+                            <span class="text-lg font-black text-slate-900">${data.stats.referrals_active || 0}</span>
+                            <span class="text-[10px] text-slate-400 font-bold">/ ${data.stats.referrals_total || 0}</span>
+                            <span class="text-[11px] font-black text-indigo-600 ml-1">+${data.stats.referrals_points || 0} pt</span>
+                        </div>
+                        <span class="text-[9px] text-emerald-700 font-bold block mt-0.5">aktív hirdető</span>
                     </div>
                 </div>
             </div>
@@ -6967,11 +7015,11 @@ function renderAchievementsUI(data) {
         <div class="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-4">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
-                    <h4 class="text-base font-black text-slate-900 leading-tight">Szintek Útja & Jutalmak</h4>
-                    <p class="text-xs text-slate-500">Minden szint 300 pont. Nincs felső határ, a jutalmak végtelenek!</p>
+                    <h4 class="text-base font-black text-slate-900 leading-tight">Szintek Útja & Hirdetési Hely Jutalmak</h4>
+                    <p class="text-xs text-slate-500">Minden szint 300 pont. Minden szintlépéskor +1 permanens hirdetési hely jár!</p>
                 </div>
                 <span class="px-2.5 py-1 bg-amber-100 text-amber-900 font-extrabold text-[11px] rounded-full">
-                    300 pont = 1 szint = +1 Kiemelés
+                    300 pont = 1 szint = +1 Hely
                 </span>
             </div>
 
@@ -7011,13 +7059,62 @@ function renderAchievementsUI(data) {
 
                             <div class="mt-3 pt-2 border-t border-slate-200/60">
                                 <span class="text-[10px] font-extrabold ${isReached ? 'text-emerald-700' : 'text-slate-500'} flex items-center gap-1">
-                                    <i class="fa-solid fa-gift text-[9px]"></i>
-                                    ${lvl === 1 ? 'Közösségi tagság' : '+1 Ingyen Kiemelés'}
+                                    <i class="fa-solid fa-toolbox text-[9px]"></i>
+                                    ${lvl === 1 ? '1 Alap hirdetés' : `+1 Hely (${lvl} db)`}
                                 </span>
                             </div>
                         </div>
                     `;
                 }).join('')}
+            </div>
+        </div>
+
+
+        <!-- 5. KÖZÖSSÉGÉPÍTŐ JELVÉNYEK & ELISMERÉSEK (REFERRAL BADGES) -->
+        <div class="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h4 class="text-base font-black text-slate-900 leading-tight">Közösségépítő Jelvények & Elismerések</h4>
+                    <p class="text-xs text-slate-500">Hívj meg ismerősöket a platformra és gyűjtsd be a különleges jelvényeket!</p>
+                </div>
+                <span class="px-2.5 py-1 bg-indigo-100 text-indigo-900 font-extrabold text-[11px] rounded-full flex items-center gap-1.5">
+                    <i class="fa-solid fa-award text-indigo-600"></i>
+                    <span>${(data.referral_badges || []).filter(b => b.unlocked).length} / ${(data.referral_badges || []).length} feloldva</span>
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                ${(data.referral_badges || []).map(badge => `
+                    <div class="p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                        badge.unlocked 
+                        ? 'bg-gradient-to-br from-amber-50/80 to-amber-100/40 border-amber-300 shadow-sm' 
+                        : 'bg-slate-50/70 border-slate-200 opacity-60'
+                    }">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="w-10 h-10 rounded-xl ${badge.unlocked ? 'bg-amber-400 text-slate-950 shadow-sm' : 'bg-slate-200 text-slate-400'} flex items-center justify-center text-lg">
+                                    <i class="fa-solid ${badge.icon}"></i>
+                                </div>
+                                ${badge.unlocked ? `
+                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] rounded-full border border-emerald-300 flex items-center gap-1">
+                                        <i class="fa-solid fa-check text-[9px]"></i> Feloldva
+                                    </span>
+                                ` : `
+                                    <span class="px-2 py-0.5 bg-slate-200 text-slate-600 font-bold text-[10px] rounded-full flex items-center gap-1">
+                                        <i class="fa-solid fa-lock text-[9px]"></i> ${badge.req} meghívott
+                                    </span>
+                                `}
+                            </div>
+                            <h5 class="text-sm font-black text-slate-900 mt-2">${badge.name}</h5>
+                            <p class="text-xs text-slate-500 mt-0.5 font-medium">${badge.desc}</p>
+                        </div>
+                        <div class="mt-3 pt-2 border-t ${badge.unlocked ? 'border-amber-200' : 'border-slate-200/80'}">
+                            <span class="text-[10px] font-bold ${badge.unlocked ? 'text-amber-800' : 'text-slate-400'}">
+                                ${badge.unlocked ? '🎉 Büszke jelvény a profilodon' : `Haladás: ${data.stats.referrals_total || 0} / ${badge.req} meghívott`}
+                            </span>
+                        </div>
+                    </div>
+                `).join('')}
             </div>
         </div>
     `;
