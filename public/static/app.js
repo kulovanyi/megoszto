@@ -3086,6 +3086,8 @@ async function loadDashboardData() {
         const rawRenter = resRenter.ok ? await resRenter.json() : [];
         const outgoingRentals = Array.isArray(rawRenter) ? rawRenter : (rawRenter.outgoing || []);
 
+        state.incomingRentals = incomingRentals;
+        state.outgoingRentals = outgoingRentals;
         state.pendingRentalsCount = incomingRentals.filter(r => r.status === 'pending').length;
         updateNotificationBadges();
 
@@ -3600,12 +3602,15 @@ function getActionButtonsForRenter(r) {
     const itemId = r.item_id || 0;
 
     if (r.status === 'completed') {
-        if (hasReviewed) {
-            return `<span class="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Értékelve</span>`;
-        }
-        return `
-            <button onclick="openReviewModal(${r.id}, ${itemId}, '${safeTitle}', 'Bérbeadó', 'completed')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5">
+        const reviewBtn = hasReviewed ?
+            `<span class="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Értékelve</span>` :
+            `<button onclick="openReviewModal(${r.id}, ${itemId}, '${safeTitle}', 'Bérbeadó', 'completed')" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-1.5">
                 <i class="fa-solid fa-star"></i> Bérbeadó értékelése
+            </button>`;
+        return `
+            ${reviewBtn}
+            <button onclick="printRentalContract(${r.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-print"></i> Nyomtatvány
             </button>
         `;
     } else if (r.status === 'cancelled_no_show' || r.status === 'cancelled') {
@@ -3621,6 +3626,15 @@ function getActionButtonsForRenter(r) {
         return `
             <button onclick="updateRentalStatus(${r.id}, 'cancelled_no_show')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors" title="Ha a bérbeadó nem jött el a megbeszélt helyszínre">
                 <i class="fa-solid fa-user-slash mr-1"></i> Bérbeadó nem jelent meg
+            </button>
+            <button onclick="printRentalContract(${r.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-print"></i> Nyomtatvány
+            </button>
+        `;
+    } else if (r.status === 'active') {
+        return `
+            <button onclick="printRentalContract(${r.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-print"></i> Nyomtatvány
             </button>
         `;
     } else if (r.status === 'pending') {
@@ -7290,21 +7304,54 @@ window.setLightboxImage = setLightboxImage;
 // ─────────────────────────────────────────────────────────────────
 // BÉRLÉSI NYOMTATVÁNY
 // ─────────────────────────────────────────────────────────────────
-function printRentalContract(rentalId) {
+async function printRentalContract(rentalId) {
     // Megkeressük a bérlést a state-ben (incoming = bérbeadóként, outgoing = bérlőként)
-    const allRentals = [
+    let allRentals = [
         ...(state.incomingRentals || []),
         ...(state.outgoingRentals || [])
     ];
-    const r = allRentals.find(x => x.id == rentalId);
+    let r = allRentals.find(x => String(x.id) === String(rentalId));
+
+    // Ha nincs még a state-ben, lekérjük a szerverről
+    if (!r && state.currentUser) {
+        try {
+            const res = await fetch(`/api/rentals?user_id=${state.currentUser.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : [...(data.incoming || []), ...(data.outgoing || [])];
+                if (data.incoming) state.incomingRentals = data.incoming;
+                if (data.outgoing) state.outgoingRentals = data.outgoing;
+                if (!state.incomingRentals) state.incomingRentals = list;
+                r = list.find(x => String(x.id) === String(rentalId));
+            }
+        } catch (e) {
+            console.warn('Hiba a bérlés lekérésekor nyomtatáshoz:', e);
+        }
+    }
+
     if (!r) {
-        alert('A bérlés adata nem található. Kérjük frissítsd az oldalt.');
+        alert('A bérlés adata nem található. Kérjük frissítsd az oldalt!');
         return;
     }
 
-    const itemTitle   = (r.item_title || 'Eszköz').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const itemCat     = (r.item_category || '–').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const itemLoc     = (r.item_location || r.item_city || '–').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const clean = (val) => (val && val !== '–' && val !== 'undefined') ? String(val).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+
+    const isCurrentUserOwner = state.currentUser && (String(r.owner_id) === String(state.currentUser.id) || String(r.user_id) === String(state.currentUser.id));
+    const isCurrentUserRenter = state.currentUser && String(r.renter_id) === String(state.currentUser.id);
+
+    const ownerName   = clean(r.owner_name || (isCurrentUserOwner ? state.currentUser?.name : ''));
+    const ownerCity   = clean(r.owner_city || r.item_location || (isCurrentUserOwner ? state.currentUser?.city : ''));
+    const ownerPhone  = clean(r.owner_phone || (isCurrentUserOwner ? state.currentUser?.phone : ''));
+    const ownerEmail  = clean(r.owner_email || (isCurrentUserOwner ? state.currentUser?.email : ''));
+
+    const renterName  = clean(r.renter_name || (isCurrentUserRenter ? state.currentUser?.name : ''));
+    const renterCity  = clean(r.renter_city || (isCurrentUserRenter ? state.currentUser?.city : ''));
+    const renterPhone = clean(r.renter_phone || (isCurrentUserRenter ? state.currentUser?.phone : ''));
+    const renterEmail = clean(r.renter_email || (isCurrentUserRenter ? state.currentUser?.email : ''));
+
+    const itemTitle   = clean(r.item_title || 'Eszköz');
+    const itemCat     = clean(r.item_category || '–');
+    const itemLoc     = clean(r.item_location || r.item_city || ownerCity || '–');
     const startDate   = r.start_date || '–';
     const endDate     = r.end_date || r.start_date || '–';
     const units       = r.units_count || 1;
@@ -7422,8 +7469,14 @@ function printRentalContract(rentalId) {
   .field .line {
     display: block;
     border-bottom: 1px solid #888;
-    min-height: 18px;
+    min-height: 20px;
     width: 100%;
+    font-size: 10pt;
+    font-weight: 600;
+    color: #111;
+    padding: 0 4px;
+    line-height: 19px;
+    word-break: break-word;
   }
   /* Data table */
   table.data-table {
@@ -7487,13 +7540,15 @@ function printRentalContract(rentalId) {
   }
   .sig-date {
     font-size: 8.5pt;
-    color: #888;
+    color: #555;
     margin-top: 14px;
   }
   .sig-date .line {
     display: inline-block;
     border-bottom: 1px solid #888;
     min-width: 140px;
+    padding: 0 4px;
+    font-weight: 600;
   }
   /* QR + reference row */
   .footer-row {
@@ -7574,11 +7629,11 @@ function printRentalContract(rentalId) {
       <h3>Bérbeadó (Eszköz tulajdonosa)</h3>
       <div class="field">
         <label>Teljes neve</label>
-        <span class="line"></span>
+        <span class="line">${ownerName}</span>
       </div>
       <div class="field">
-        <label>Lakcíme</label>
-        <span class="line"></span>
+        <label>Lakcíme / Település</label>
+        <span class="line">${ownerCity}</span>
       </div>
       <div class="field">
         <label>Személyigazolvány száma</label>
@@ -7586,22 +7641,22 @@ function printRentalContract(rentalId) {
       </div>
       <div class="field">
         <label>Telefonszáma</label>
-        <span class="line"></span>
+        <span class="line">${ownerPhone}</span>
       </div>
       <div class="field">
         <label>E-mail címe</label>
-        <span class="line"></span>
+        <span class="line">${ownerEmail}</span>
       </div>
     </div>
     <div class="party-box">
       <h3>Bérlő</h3>
       <div class="field">
         <label>Teljes neve</label>
-        <span class="line"></span>
+        <span class="line">${renterName}</span>
       </div>
       <div class="field">
-        <label>Lakcíme</label>
-        <span class="line"></span>
+        <label>Lakcíme / Település</label>
+        <span class="line">${renterCity}</span>
       </div>
       <div class="field">
         <label>Személyigazolvány száma</label>
@@ -7609,11 +7664,11 @@ function printRentalContract(rentalId) {
       </div>
       <div class="field">
         <label>Telefonszáma</label>
-        <span class="line"></span>
+        <span class="line">${renterPhone}</span>
       </div>
       <div class="field">
         <label>E-mail címe</label>
-        <span class="line"></span>
+        <span class="line">${renterEmail}</span>
       </div>
     </div>
   </div>
@@ -7661,23 +7716,23 @@ function printRentalContract(rentalId) {
     <div class="party-box">
       <h3>Átadás</h3>
       <div class="field">
-        <label>Helyszín (cím)</label>
-        <span class="line"></span>
+        <label>Helyszín (cím / település)</label>
+        <span class="line">${itemLoc}</span>
       </div>
       <div class="field">
-        <label>Időpont</label>
-        <span class="line"></span>
+        <label>Tervezett kezdés dátuma</label>
+        <span class="line">${startDate}</span>
       </div>
     </div>
     <div class="party-box">
       <h3>Visszaadás</h3>
       <div class="field">
-        <label>Helyszín (cím)</label>
-        <span class="line"></span>
+        <label>Helyszín (cím / település)</label>
+        <span class="line">${itemLoc}</span>
       </div>
       <div class="field">
-        <label>Időpont</label>
-        <span class="line"></span>
+        <label>Visszaadás tervezett dátuma</label>
+        <span class="line">${endDate}</span>
       </div>
     </div>
   </div>
@@ -7707,12 +7762,12 @@ function printRentalContract(rentalId) {
     <div class="sig-block">
       <div class="sig-line"></div>
       <div class="sig-label"><strong>Bérbeadó aláírása</strong></div>
-      <div class="sig-date">Kelt: <span class="line"></span></div>
+      <div class="sig-date">Kelt: <span class="line">${itemLoc ? itemLoc + ', ' : ''}${printDate}</span></div>
     </div>
     <div class="sig-block">
       <div class="sig-line"></div>
       <div class="sig-label"><strong>Bérlő aláírása</strong></div>
-      <div class="sig-date">Kelt: <span class="line"></span></div>
+      <div class="sig-date">Kelt: <span class="line">${itemLoc ? itemLoc + ', ' : ''}${printDate}</span></div>
     </div>
   </div>
 
@@ -7736,15 +7791,19 @@ function printRentalContract(rentalId) {
 
     const popup = window.open('', '_blank', 'width=900,height=1100,scrollbars=yes');
     if (!popup) {
-        alert('A nyomtatvány megnyitásához engedélyezd a felugró ablakokat a böngésződben!');
+        alert('A nyomtatvány megnyitásához kérjük engedélyezd a felugró ablakokat a böngésződben!');
         return;
     }
     popup.document.write(html);
     popup.document.close();
-    // Kis késleltetés után automatikusan megnyílik a nyomtatási párbeszédablak
-    popup.onload = function () {
-        setTimeout(() => popup.print(), 400);
-    };
+    setTimeout(() => {
+        try {
+            popup.focus();
+            popup.print();
+        } catch (e) {
+            console.warn('Automatikus nyomtatási párbeszédablak indítása nem sikerült, használd a gombot:', e);
+        }
+    }, 500);
 }
 
 window.printRentalContract = printRentalContract;
